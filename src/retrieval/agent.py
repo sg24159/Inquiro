@@ -1,6 +1,7 @@
 import httpx
 
 from coordinator.state import ResearchState
+from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
 from shared.models import RawResult
 
 ARXIV_URL = "http://export.arxiv.org/api/query"
@@ -8,10 +9,12 @@ ARXIV_URL = "http://export.arxiv.org/api/query"
 
 def retriever_node(state: ResearchState, config) -> dict:
     sub_tasks = state.get("sub_tasks", [])
-    logs: list[str] = []
+    warnings = validate_contract({"sub_tasks": sub_tasks}, RetrieverInput)
+    logs: list[str] = list(warnings)
 
     if not sub_tasks:
         logs.append("[Retriever] [WARN] No sub-tasks to query — returning empty.")
+        logs.extend(validate_contract({"raw_results": []}, RetrieverOutput))
         return {"raw_results": [], "logs": logs}
 
     total_keywords = sum(len(t.keywords) for t in sub_tasks)
@@ -32,6 +35,7 @@ def retriever_node(state: ResearchState, config) -> dict:
         f"[Retriever] Queried {total_keywords} keyword sets across "
         f"{len(sub_tasks)} sub-tasks, found {len(deduplicated)} unique results.",
     )
+    logs.extend(validate_contract({"raw_results": deduplicated}, RetrieverOutput))
     return {
         "raw_results": deduplicated,
         "logs": logs,

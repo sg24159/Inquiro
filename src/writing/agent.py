@@ -3,6 +3,7 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader
 
 from coordinator.state import ResearchState
+from shared.contracts import WriterInput, WriterOutput, validate_contract
 from shared.models import ReportAssets
 
 
@@ -10,6 +11,10 @@ def writer_node(state: ResearchState, config) -> dict:
     query = state.get("query", "Research Report")
     sub_tasks = state.get("sub_tasks", [])
     findings = state.get("processed_findings", [])
+    warnings = validate_contract(
+        {"query": query, "sub_tasks": sub_tasks, "processed_findings": findings},
+        WriterInput,
+    )
     env = Environment(loader=PackageLoader("writing", "templates"))
     md_body = env.get_template("report.md.j2").render(
         title=query,
@@ -17,9 +22,12 @@ def writer_node(state: ResearchState, config) -> dict:
         findings=findings,
     )
     assets = _save_assets(query, md_body, findings)
+    logs = [f"[Writer] Saved report to {assets.markdown_path}"]
+    logs.extend(warnings)
+    logs.extend(validate_contract({"report": assets}, WriterOutput))
     return {
         "report": assets,
-        "logs": [f"[Writer] Saved report to {assets.markdown_path}"],
+        "logs": logs,
     }
 
 

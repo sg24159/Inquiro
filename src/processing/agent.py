@@ -4,19 +4,23 @@ from config import agents_config
 from coordinator.state import ResearchState
 from processing.tools import filter_noise
 from shared import llm as llm_module
+from shared.contracts import ProcessorInput, ProcessorOutput, validate_contract
 from shared.models import ProcessedFinding
 from shared.utils import strip_line_noise
 
 
 def processor_node(state: ResearchState, config) -> dict:
     raw = state.get("raw_results", [])
+    warnings = validate_contract({"raw_results": raw}, ProcessorInput)
     filtered = filter_noise(raw)
     logs = [
         f"[Processor] Filtered {len(raw)} → {len(filtered)} after noise removal."
     ]
+    logs.extend(warnings)
 
     if not filtered:
         logs.append("  [WARN] No raw results to process — skipping LLM call.")
+        logs.extend(validate_contract({"processed_findings": []}, ProcessorOutput))
         return {
             "processed_findings": [],
             "logs": logs,
@@ -45,6 +49,7 @@ def processor_node(state: ResearchState, config) -> dict:
             f"  [WARN] No FINDING| lines parsed from LLM response "
             f"(first 300 chars: {response.content[:300]!r})"
         )
+    logs.extend(validate_contract({"processed_findings": findings}, ProcessorOutput))
     return {
         "processed_findings": findings,
         "messages": [response],

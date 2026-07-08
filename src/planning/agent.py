@@ -3,11 +3,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from config import agents_config
 from coordinator.state import ResearchState
 from shared import llm as llm_module
+from shared.contracts import PlannerInput, PlannerOutput, validate_contract
 from shared.models import SubTask
 from shared.utils import strip_line_noise
 
 
 def planner_node(state: ResearchState, config) -> dict:
+    warnings = validate_contract({"query": state.get("query", "")}, PlannerInput)
     llm = llm_module.get_llm(temperature=0.3)
     system_prompt = agents_config["planner"]["system_prompt"]
     messages = [
@@ -33,6 +35,10 @@ def planner_node(state: ResearchState, config) -> dict:
             f"  [WARN] No TASK| lines found in LLM response "
             f"(first 300 chars: {response.content[:300]!r})"
         )
+    warnings.extend(
+        validate_contract({"sub_tasks": sub_tasks}, PlannerOutput)
+    )
+    logs.extend(warnings)
     return {
         "sub_tasks": sub_tasks,
         "messages": [response],
