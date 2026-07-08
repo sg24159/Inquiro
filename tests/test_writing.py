@@ -6,6 +6,17 @@ from shared.models import ProcessedFinding, SubTask
 from writing.agent import _save_assets
 
 
+def test_save_assets_empty_findings(tmp_path, monkeypatch):
+    """Empty findings should still produce valid files."""
+    monkeypatch.chdir(tmp_path)
+    assets = _save_assets(title="Empty Report", md_body="# Report", findings=[])
+    assert Path(assets.markdown_path).exists()
+    assert Path(assets.json_path).exists()
+    with open(assets.json_path) as f:
+        data = json.load(f)
+    assert data["findings"] == []
+
+
 def test_save_assets_creates_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     findings = [

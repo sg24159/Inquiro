@@ -1,5 +1,10 @@
-from processing.agent import _parse_findings
+from unittest.mock import MagicMock, patch
+
+from langchain_core.messages import AIMessage
+
+from processing.agent import _parse_findings, processor_node
 from processing.tools import filter_noise, jaccard_similarity
+from coordinator.state import ResearchState
 from shared.models import RawResult
 
 
@@ -42,3 +47,39 @@ def test_parse_findings():
 
 def test_parse_findings_empty():
     assert _parse_findings("") == []
+
+
+def test_parse_findings_with_markdown_noise():
+    """Should strip markdown list prefixes before matching FINDING|."""
+    text = (
+        "- FINDING|Key insight|0.9|Source A\n"
+        "* FINDING|Another point|0.8|Source B"
+    )
+    result = _parse_findings(text)
+    assert len(result) == 2
+    assert result[0].summary == "Key insight"
+    assert result[1].summary == "Another point"
+
+
+def test_parse_findings_with_preamble():
+    """Non-matching lines before/after FINDING| should be skipped."""
+    text = (
+        "Here are the summarized results:\n"
+        "FINDING|First finding|0.9|Source A\n"
+        "FINDING|Second finding|0.8|Source B\n"
+        "--- end ---"
+    )
+    result = _parse_findings(text)
+    assert len(result) == 2
+    assert result[0].summary == "First finding"
+    assert result[1].summary == "Second finding"
+
+
+def test_processor_node_skips_llm_on_empty():
+    """Empty raw_results should skip LLM call, return empty, log warning."""
+    with patch("shared.llm.get_llm") as mock:
+        state = ResearchState(query="test", messages=[], raw_results=[])
+        result = processor_node(state, {"configurable": {"thread_id": "t"}})
+        assert result["processed_findings"] == []
+        mock.assert_not_called()
+        assert any("[WARN]" in log for log in result["logs"])

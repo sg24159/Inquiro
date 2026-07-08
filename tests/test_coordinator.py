@@ -22,6 +22,10 @@ def test_graph_execution(mock_llm, mock_httpx, graph):
     ):
         pass
     final = graph.get_state(config)
-    assert final.values.get("sub_tasks") is not None
-    assert final.values.get("raw_results") is not None
+    assert isinstance(final.values.get("sub_tasks"), list)
+    assert len(final.values["sub_tasks"]) >= 1
+    assert isinstance(final.values.get("raw_results"), list)
+    assert isinstance(final.values.get("processed_findings"), list)
+    assert final.values.get("processed_findings") is not None
     assert final.values.get("report") is not None
+    assert isinstance(final.values.get("logs"), list)
