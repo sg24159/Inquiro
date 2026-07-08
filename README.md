@@ -2,6 +2,18 @@
 
 Inquiro is an LLM-powered multi-agent system for supporting academic research. Four specialised agents operate in a linear pipeline to decompose research questions into subtasks, retrieve relevant literature, process findings, and generate structured offline reports.
 
+## Architecture
+
+```
+User Query               outputs/
+    │                    ├── {ts}_{query}.md
+    ▼                    └── {ts}_{query}.json
+┌──────────┐     ┌───────────┐     ┌───────────┐     ┌────────┐
+│ Planner  │ ──► │ Retriever │ ──► │ Processor │ ──► │ Writer │
+│ (Mistral)│     │ (httpx)   │     │ (Mistral) │     │(Jinja2)│
+└──────────┘     └───────────┘     └───────────┘     └────────┘
+```
+
 ## Agents
 
 | Agent | Backed by | Role |
@@ -65,6 +77,7 @@ This project makes use of the following external libraries, frameworks, and serv
 | **httpx** | HTTP client for API calls | [encode/httpx](https://github.com/encode/httpx) (BSD) |
 | **Jinja2** | Template engine for report rendering | [pallets/jinja](https://github.com/pallets/jinja) (BSD-3-Clause) |
 | **Streamlit** | Web UI framework | [streamlit/streamlit](https://github.com/streamlit/streamlit) (Apache 2.0) |
+| **Pydantic** | Settings management and data models | [pydantic/pydantic](https://github.com/pydantic/pydantic) (MIT) |
 | **Rich** | Terminal formatting for CLI output | [Textualize/rich](https://github.com/Textualize/rich) (MIT) |
 | **Mistral 7B** | Default local LLM model | [mistralai/mistral-src](https://github.com/mistralai/mistral-src) (Apache 2.0) |
 
