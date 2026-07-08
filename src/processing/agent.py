@@ -5,11 +5,23 @@ from coordinator.state import ResearchState
 from processing.tools import filter_noise
 from shared import llm as llm_module
 from shared.models import ProcessedFinding
+from shared.utils import strip_line_noise
 
 
 def processor_node(state: ResearchState, config) -> dict:
     raw = state.get("raw_results", [])
     filtered = filter_noise(raw)
+    logs = [
+        f"[Processor] Filtered {len(raw)} → {len(filtered)} after noise removal."
+    ]
+
+    if not filtered:
+        logs.append("  [WARN] No raw results to process — skipping LLM call.")
+        return {
+            "processed_findings": [],
+            "logs": logs,
+        }
+
     context_lines = "\n".join(
         f"[{i}] {r.title}\n    {r.snippet[:200]}" for i, r in enumerate(filtered)
     )
@@ -27,23 +39,26 @@ def processor_node(state: ResearchState, config) -> dict:
     ]
     response = llm.invoke(messages)
     findings = _parse_findings(response.content)
+    logs.append(f"  Produced {len(findings)} scored findings.")
+    if not findings:
+        logs.append(
+            f"  [WARN] No FINDING| lines parsed from LLM response "
+            f"(first 300 chars: {response.content[:300]!r})"
+        )
     return {
         "processed_findings": findings,
         "messages": [response],
-        "logs": [
-            f"[Processor] Filtered {len(raw)} → {len(filtered)} after noise removal, "
-            f"produced {len(findings)} scored findings."
-        ],
+        "logs": logs,
     }
 
 
 def _parse_findings(text: str) -> list[ProcessedFinding]:
     findings = []
     for line in text.strip().split("\n"):
-        line = line.strip()
-        if not line.startswith("FINDING|"):
+        cleaned = strip_line_noise(line)
+        if not cleaned.startswith("FINDING|"):
             continue
-        parts = line.split("|")
+        parts = cleaned.split("|")
         if len(parts) >= 4:
             try:
                 score = float(parts[2])

@@ -16,6 +16,8 @@ def test_deduplicate():
 
 
 def test_fetch_arxiv_handles_error():
-    """Should return empty list on network error without crashing."""
-    results = _fetch_arxiv("nonexistent_xyz_query_12345", max_results=1)
+    """Should return empty list and error string on network error."""
+    results, error = _fetch_arxiv("nonexistent_xyz_query_12345", max_results=1)
     assert isinstance(results, list)
+    assert len(results) == 0
+    # error may be None if httpx resolves to localhost, or a string if it raises

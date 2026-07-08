@@ -8,30 +8,44 @@ ARXIV_URL = "http://export.arxiv.org/api/query"
 
 def retriever_node(state: ResearchState, config) -> dict:
     sub_tasks = state.get("sub_tasks", [])
+    logs: list[str] = []
+
+    if not sub_tasks:
+        logs.append("[Retriever] [WARN] No sub-tasks to query — returning empty.")
+        return {"raw_results": [], "logs": logs}
+
+    total_keywords = sum(len(t.keywords) for t in sub_tasks)
     all_results: list[RawResult] = []
     for idx, task in enumerate(sub_tasks):
         for keyword in task.keywords:
-            results = _fetch_arxiv(keyword, max_results=3)
+            results, error = _fetch_arxiv(keyword, max_results=3)
+            if error:
+                logs.append(f"  [WARN] {error}")
+            kw_log = f"  sub_task[{idx}] keyword '{keyword}': {len(results)} results"
+            logs.append(kw_log)
             for r in results:
                 r.sub_task_idx = idx
             all_results.extend(results)
     deduplicated = _deduplicate(all_results)
+    logs.insert(
+        0,
+        f"[Retriever] Queried {total_keywords} keyword sets across "
+        f"{len(sub_tasks)} sub-tasks, found {len(deduplicated)} unique results.",
+    )
     return {
         "raw_results": deduplicated,
-        "logs": [
-            f"[Retriever] Queried {sum(len(t.keywords) for t in sub_tasks)} "
-            f"keyword sets, found {len(deduplicated)} unique results."
-        ],
+        "logs": logs,
     }
 
 
-def _fetch_arxiv(query: str, max_results: int = 3) -> list[RawResult]:
+def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str | None]:
     params = {
         "search_query": f"all:{query}",
         "max_results": max_results,
         "sortBy": "relevance",
     }
     results: list[RawResult] = []
+    error: str | None = None
     try:
         resp = httpx.get(ARXIV_URL, params=params, timeout=15.0)
         resp.raise_for_status()
@@ -44,9 +58,11 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> list[RawResult]:
             link_el = entry.find("a:id", ns)
             source = link_el.text.strip() if link_el is not None else ""
             results.append(RawResult(source=source, title=title, snippet=summary[:500]))
-    except httpx.HTTPError:
-        pass
-    return results
+    except httpx.HTTPError as e:
+        error = f"HTTP error querying arXiv for '{query}': {e}"
+    except ET.ParseError as e:
+        error = f"XML parse error for arXiv response on '{query}': {e}"
+    return results, error
 
 
 def _deduplicate(results: list[RawResult]) -> list[RawResult]:

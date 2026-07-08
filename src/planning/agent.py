@@ -4,6 +4,7 @@ from config import agents_config
 from coordinator.state import ResearchState
 from shared import llm as llm_module
 from shared.models import SubTask
+from shared.utils import strip_line_noise
 
 
 def planner_node(state: ResearchState, config) -> dict:
@@ -23,20 +24,29 @@ def planner_node(state: ResearchState, config) -> dict:
     ]
     response = llm.invoke(messages)
     sub_tasks = _parse_sub_tasks(response.content)
+    logs = [f"[Planner] Decomposed into {len(sub_tasks)} sub-tasks."]
+    if sub_tasks:
+        for st in sub_tasks:
+            logs.append(f"  TASK: {st.description} ({', '.join(st.keywords)})")
+    else:
+        logs.append(
+            f"  [WARN] No TASK| lines found in LLM response "
+            f"(first 300 chars: {response.content[:300]!r})"
+        )
     return {
         "sub_tasks": sub_tasks,
         "messages": [response],
-        "logs": [f"[Planner] Decomposed into {len(sub_tasks)} sub-tasks."],
+        "logs": logs,
     }
 
 
 def _parse_sub_tasks(text: str) -> list[SubTask]:
     tasks = []
     for line in text.strip().split("\n"):
-        line = line.strip()
-        if not line.startswith("TASK|"):
+        cleaned = strip_line_noise(line)
+        if not cleaned.startswith("TASK|"):
             continue
-        parts = line.split("|")
+        parts = cleaned.split("|")
         if len(parts) >= 3:
             desc = parts[1].strip()
             keywords = [k.strip() for k in parts[2].split(",") if k.strip()]
