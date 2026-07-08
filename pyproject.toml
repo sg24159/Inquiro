@@ -1,0 +1,35 @@
+[project]
+name = "inquiro"
+version = "0.1.0"
+description = "LLM-powered multi-agent system for supporting academic research using LangGraph + Ollama"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "langchain>=0.3.0",
+    "langchain-community>=0.3.0",
+    "langgraph>=0.4.0",
+    "langchain-ollama>=0.2.0",
+    "duckduckgo_search>=7.0.0",
+    "streamlit>=1.40.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0",
+    "httpx>=0.28.0",
+    "jinja2>=3.1.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["config", "src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
