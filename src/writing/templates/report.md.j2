@@ -1,0 +1,36 @@
+# {{ title }}
+
+> Auto-generated research report
+
+---
+
+## Sub-Tasks Investigated
+
+{% for task in sub_tasks %}
+- **{{ task.description }}**
+  - Keywords: {{ task.keywords | join(", ") }}
+{% endfor %}
+
+---
+
+## Findings
+
+{% for f in findings %}
+### Finding {{ loop.index }} (relevance: {{ "%.2f"|format(f.relevance_score) }})
+
+**{{ f.summary }}**
+
+*Source: {{ f.source }}*
+
+{% endfor %}
+
+---
+
+## Summary
+
+{% if findings %}
+This report synthesises {{ findings | length }} processed findings
+across {{ sub_tasks | length }} research sub-tasks.
+{% else %}
+No findings were generated.
+{% endif %}
