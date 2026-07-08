@@ -87,6 +87,6 @@ All configuration is via environment variables (see `.env.example`):
 
 | Variable | Default | Description |
 |---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server address |
-| `OLLAMA_MODEL` | `mistral` | Model name to use |
+| `LLM_BASE_URL` | `http://localhost:11434/v1` | LLM API endpoint (Ollama, llama.cpp, NIM, OpenAI) |
+| `LLM_MODEL` | `mistral` | Model name to use |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |

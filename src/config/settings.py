@@ -8,8 +8,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "mistral"
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_model: str = "mistral"
+    api_key: str = ""
     tavily_api_key: str = ""
     log_level: str = "INFO"
 

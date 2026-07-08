@@ -1,11 +1,12 @@
-from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 from config.settings import settings
 
 
 def get_llm(model: str | None = None, temperature: float = 0.0):
-    return ChatOllama(
-        model=model or settings.ollama_model,
-        base_url=settings.ollama_base_url,
+    return ChatOpenAI(
+        model=model or settings.llm_model,
+        base_url=settings.llm_base_url,
         temperature=temperature,
+        api_key=settings.api_key or "no-key-required",
     )
