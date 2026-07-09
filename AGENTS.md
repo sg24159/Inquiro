@@ -22,7 +22,7 @@ This file defines conventions and expectations for AI coding agents working on t
 
 ## Testing
 
-- Run `pytest tests/ -v` before any final commit.
+- Run `pytest tests/ -v --cov=src --cov-report=term-missing` before any final commit.
 - All new agent nodes should have a unit test using fixtures from `tests/conftest.py`.
 - LLM-backed agents (planner, processor): mock `shared.llm.get_llm`.
 - Non-LLM agents (retriever): mock `httpx.get`.
