@@ -50,7 +50,8 @@ def _save_assets(
     from datetime import datetime
     import json
 
-    out = Path("outputs")
+    from config.settings import get_settings
+    out = Path(get_settings().outputs_dir)
     out.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:50].strip("-_")

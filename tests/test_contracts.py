@@ -71,9 +71,65 @@ def test_writer_input_valid():
 
 
 def test_writer_output_valid():
-    from pathlib import Path
-
     assets = ReportAssets(
         markdown_path="/tmp/test.md", json_path="/tmp/test.json", title="test"
     )
     assert validate_contract({"report": assets}, WriterOutput) == []
+
+
+def test_writer_output_none_report():
+    """WriterOutput allows report=None."""
+    assert validate_contract({"report": None}, WriterOutput) == []
+
+
+def test_writer_input_missing_query():
+    warnings = validate_contract({"sub_tasks": [], "processed_findings": []}, WriterInput)
+    assert len(warnings) >= 1
+
+
+def test_writer_input_missing_findings():
+    warnings = validate_contract({"query": "test", "sub_tasks": []}, WriterInput)
+    assert len(warnings) >= 1
+
+
+def test_relevance_score_lower_boundary():
+    """Score of 0 is valid (ge=0)."""
+    finding = ProcessedFinding(summary="s", relevance_score=0, source="src")
+    assert finding.relevance_score == 0
+
+
+def test_relevance_score_upper_boundary():
+    """Score of 3 is valid (le=3)."""
+    finding = ProcessedFinding(summary="s", relevance_score=3, source="src")
+    assert finding.relevance_score == 3
+
+
+def test_relevance_score_above_range():
+    from pydantic import ValidationError
+
+    try:
+        ProcessedFinding(summary="s", relevance_score=4, source="src")
+    except ValidationError:
+        pass
+    else:
+        raise AssertionError("Expected ValidationError for score > 3")
+
+
+def test_relevance_score_below_range():
+    from pydantic import ValidationError
+
+    try:
+        ProcessedFinding(summary="s", relevance_score=-1, source="src")
+    except ValidationError:
+        pass
+    else:
+        raise AssertionError("Expected ValidationError for score < 0")
+
+
+def test_validate_contract_rejects_non_dict():
+    """validate_contract with non-dict should raise TypeError."""
+    try:
+        validate_contract("not a dict", PlannerInput)
+        raise AssertionError("Expected TypeError")
+    except TypeError:
+        pass

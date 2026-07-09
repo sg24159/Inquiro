@@ -1,6 +1,6 @@
 import httpx
 
-from config.settings import settings
+from config.settings import get_settings
 from coordinator.state import ResearchState
 from retrieval.tools import _cache_load, _cache_store
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
@@ -10,6 +10,7 @@ ARXIV_URL = "https://export.arxiv.org/api/query"
 
 
 def retriever_node(state: ResearchState, config) -> dict:
+    settings = get_settings()
     sub_tasks = state.get("sub_tasks", [])
     warnings = validate_contract({"sub_tasks": sub_tasks}, RetrieverInput)
     logs: list[str] = list(warnings)

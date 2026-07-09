@@ -69,3 +69,39 @@ def test_save_assets_creates_files(tmp_path, monkeypatch):
     assert data["sub_tasks"][0]["description"] == "Test task"
     assert data["sub_tasks"][0]["keywords"] == ["ml", "ai"]
     assert data["logs"] == ["[Planner] done", "[Retriever] done"]
+
+
+def test_save_assets_special_characters_in_title(tmp_path, monkeypatch):
+    """Special characters in title should be sanitized in filename."""
+    monkeypatch.chdir(tmp_path)
+    assets = _save_assets(
+        title="What is 2+2? (and why?)",
+        md_body="# Report",
+        findings=[],
+    )
+    assert Path(assets.markdown_path).exists()
+    filename = Path(assets.markdown_path).name
+    assert not any(c in filename for c in "?()")
+
+
+def test_writer_node_missing_template(monkeypatch, tmp_path):
+    """Writer node should propagate Jinja2 errors when template is broken."""
+    from unittest.mock import patch as mock_patch
+    from writing.agent import writer_node
+    from coordinator.state import ResearchState
+
+    monkeypatch.chdir(tmp_path)
+    state = ResearchState(
+        query="test",
+        messages=[],
+        sub_tasks=[],
+        processed_findings=[],
+    )
+    with mock_patch("writing.agent.Environment") as mock_env_cls:
+        mock_env = mock_env_cls.return_value
+        mock_env.get_template.side_effect = Exception("template render failed")
+        try:
+            writer_node(state, {"configurable": {"thread_id": "t"}})
+            raise AssertionError("Expected Exception")
+        except Exception as e:
+            assert "template render failed" in str(e)

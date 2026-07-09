@@ -6,7 +6,10 @@ from pathlib import Path
 
 from shared.models import RawResult
 
-CACHE_DIR = Path("outputs") / "arxiv_cache"
+
+def _cache_dir() -> Path:
+    from config.settings import get_settings
+    return Path(get_settings().outputs_dir) / "arxiv_cache"
 
 
 def _cache_key(query: str, max_results: int) -> str:
@@ -15,7 +18,7 @@ def _cache_key(query: str, max_results: int) -> str:
 
 
 def _cache_load(query: str, max_results: int) -> tuple[list[RawResult], str | None] | None:
-    path = CACHE_DIR / _cache_key(query, max_results)
+    path = _cache_dir() / _cache_key(query, max_results)
     if not path.exists():
         return None
     try:
@@ -27,8 +30,9 @@ def _cache_load(query: str, max_results: int) -> tuple[list[RawResult], str | No
 
 
 def _cache_store(query: str, max_results: int, results: list[RawResult], error: str | None) -> None:
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    path = CACHE_DIR / _cache_key(query, max_results)
+    cache_dir = _cache_dir()
+    os.makedirs(cache_dir, exist_ok=True)
+    path = cache_dir / _cache_key(query, max_results)
     data = {
         "results": [r.model_dump() for r in results],
         "error": error,

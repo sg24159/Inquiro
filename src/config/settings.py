@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     relevance_threshold: int = 2
     arxiv_max_results: int = 5
+    outputs_dir: str = "outputs"
 
 
-settings = Settings()
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings

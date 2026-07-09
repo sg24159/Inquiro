@@ -78,3 +78,35 @@ def test_parse_sub_tasks_comma_in_description():
     assert len(result) == 1
     assert result[0].description == "Analyze social media, focusing on depression"
     assert result[0].keywords == ["social media", "depression", "teenagers"]
+
+
+def test_parse_sub_tasks_empty_keywords():
+    """Empty keywords after comma split should produce empty list."""
+    text = "TASK|Some description| , , "
+    result = _parse_sub_tasks(text)
+    assert len(result) == 1
+    assert result[0].keywords == []
+
+
+def test_parse_sub_tasks_whitespace_only_lines():
+    """Whitespace-only lines should be ignored."""
+    text = "   \n   \n   "
+    result = _parse_sub_tasks(text)
+    assert result == []
+
+
+def test_planner_node_llm_exception():
+    """LLM exception should propagate."""
+    from planning.agent import planner_node
+    from coordinator.state import ResearchState
+
+    with patch("shared.llm.get_llm") as mock:
+        llm_instance = MagicMock()
+        llm_instance.invoke.side_effect = RuntimeError("LLM unavailable")
+        mock.return_value = llm_instance
+        state = ResearchState(query="test", messages=[])
+        try:
+            planner_node(state, {"configurable": {"thread_id": "t"}})
+            raise AssertionError("Expected RuntimeError")
+        except RuntimeError as e:
+            assert "LLM unavailable" in str(e)

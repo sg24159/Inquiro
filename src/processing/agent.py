@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config import agents_config
-from config.settings import settings
+from config.settings import get_settings
 from coordinator.state import ResearchState
 from processing.tools import filter_noise
 from shared import llm as llm_module
@@ -29,6 +29,7 @@ def processor_node(state: ResearchState, config) -> dict:
     summarizer_prompt = agents_config["processor"]["summarizer_prompt"]
     scorer_llm = llm_module.get_llm(temperature=0.0)
     summarizer_llm = llm_module.get_llm(temperature=0.2)
+    settings = get_settings()
     threshold = settings.relevance_threshold
     findings = []
 
