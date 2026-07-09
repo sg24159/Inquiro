@@ -63,6 +63,7 @@ def mock_httpx():
         mock.return_value = (
             [RawResult(source="s", title="Paper", snippet="Abstract text here")],
             None,
+            False,
         )
         yield mock
 

@@ -5,7 +5,7 @@ import httpx
 from retrieval.agent import _deduplicate, _fetch_arxiv, retriever_node
 from retrieval.tools import _cache_load, _cache_store
 from coordinator.state import ResearchState
-from shared.models import RawResult
+from shared.models import RawResult, SubTask
 
 
 def test_deduplicate():
@@ -26,7 +26,7 @@ def test_deduplicate_empty_list():
 
 def test_fetch_arxiv_handles_error():
     """Should return empty list and error string on network error."""
-    results, error = _fetch_arxiv("nonexistent_xyz_query_12345", max_results=1)
+    results, error, _cache_hit = _fetch_arxiv("nonexistent_xyz_query_12345", max_results=1)
     assert isinstance(results, list)
     assert len(results) == 0
     # error may be None if httpx resolves to localhost, or a string if it raises
@@ -38,10 +38,11 @@ def test_fetch_arxiv_malformed_xml():
         mock_get.return_value.status_code = 200
         mock_get.return_value.text = "not valid xml"
         mock_get.return_value.raise_for_status = MagicMock()
-        results, error = _fetch_arxiv("test", max_results=1)
+        results, error, cache_hit = _fetch_arxiv("test", max_results=1)
         assert len(results) == 0
         assert error is not None
         assert "XML" in error or "Parse" in error
+        assert not cache_hit
 
 
 @patch("retrieval.agent._cache_load", return_value=None)
@@ -49,10 +50,11 @@ def test_fetch_arxiv_http_timeout(mock_cache):
     """Timeout should be caught, returned as error string."""
     with patch("retrieval.agent.httpx.get") as mock_get:
         mock_get.side_effect = httpx.TimeoutException("connection timed out")
-        results, error = _fetch_arxiv("test query", max_results=3)
+        results, error, cache_hit = _fetch_arxiv("test query", max_results=3)
         assert results == []
         assert error is not None
         assert "timed out" in error.lower() or "timeout" in error.lower()
+        assert not cache_hit
 
 
 @patch("retrieval.agent._cache_load", return_value=None)
@@ -66,10 +68,11 @@ def test_fetch_arxiv_http_status_error(mock_cache):
             response=MagicMock(status_code=403),
         )
         mock_get.return_value = response
-        results, error = _fetch_arxiv("test query", max_results=3)
+        results, error, cache_hit = _fetch_arxiv("test query", max_results=3)
         assert results == []
         assert error is not None
         assert "403" in error
+        assert not cache_hit
 
 
 @patch("retrieval.agent._cache_load", return_value=None)
@@ -82,9 +85,10 @@ def test_fetch_arxiv_empty_feed(mock_store, mock_load):
 <feed xmlns="http://www.w3.org/2005/Atom">
 </feed>"""
         mock_get.return_value.raise_for_status = MagicMock()
-        results, error = _fetch_arxiv("test", max_results=3)
+        results, error, cache_hit = _fetch_arxiv("test", max_results=3)
         assert results == []
         assert error is None
+        assert not cache_hit
 
 
 def test_fetch_arxiv_cache_hit():
@@ -92,9 +96,10 @@ def test_fetch_arxiv_cache_hit():
     cached = [RawResult(source="cached", title="Cached Paper", snippet="abstract")]
     with patch("retrieval.agent._cache_load", return_value=(cached, None)) as mock_load:
         with patch("retrieval.agent.httpx.get") as mock_get:
-            results, error = _fetch_arxiv("test", max_results=3)
+            results, error, cache_hit = _fetch_arxiv("test", max_results=3)
             assert results == cached
             assert error is None
+            assert cache_hit
             mock_get.assert_not_called()
 
 
@@ -106,8 +111,9 @@ def test_fetch_arxiv_empty_query():
             mock_get.return_value.text = """<?xml version="1.0"?>
 <feed xmlns="http://www.w3.org/2005/Atom"></feed>"""
             mock_get.return_value.raise_for_status = MagicMock()
-            results, error = _fetch_arxiv("", max_results=3)
+            results, error, cache_hit = _fetch_arxiv("", max_results=3)
             assert isinstance(results, list)
+            assert not cache_hit
 
 
 @patch("retrieval.agent._cache_load", return_value=None)
@@ -172,9 +178,7 @@ def test_retriever_node_empty_sub_tasks():
 
 def test_retriever_node_with_sub_tasks():
     """Valid sub-tasks → sub_task_idx assigned, overlapping results deduped."""
-    from shared.models import SubTask
-
-    task_list = [
+    tasks = [
         SubTask(description="Task A", keywords=["ml", "deep learning"]),
         SubTask(description="Task B", keywords=["neural networks"]),
     ]
@@ -183,10 +187,11 @@ def test_retriever_node_with_sub_tasks():
 
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
         mock_fetch.side_effect = [
-            ([paper_a], None),
-            ([paper_b], None),
+            ([paper_a], None, False),
+            ([paper_b], None, False),
+            ([paper_b], None, False),
         ]
-        state = ResearchState(query="test", messages=[], sub_tasks=task_list)
+        state = ResearchState(query="test", messages=[], sub_tasks=tasks)
         result = retriever_node(state, {"configurable": {"thread_id": "t"}})
         mock_fetch.assert_called()
         assert len(result["raw_results"]) == 2
@@ -197,8 +202,6 @@ def test_retriever_node_with_sub_tasks():
 
 def test_retriever_node_partial_failure():
     """Some sub-tasks fail, others succeed → partial results with warning."""
-    from shared.models import SubTask
-
     tasks = [
         SubTask(description="Task A", keywords=["ml", "deep"]),
         SubTask(description="Task B", keywords=["broken"]),
@@ -207,8 +210,8 @@ def test_retriever_node_partial_failure():
 
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
         mock_fetch.side_effect = [
-            ([paper], None),
-            ([], "HTTP error querying arXiv for 'broken': timeout"),
+            ([paper], None, False),
+            ([], "HTTP error querying arXiv for 'broken': timeout", False),
         ]
         state = ResearchState(query="test", messages=[], sub_tasks=tasks)
         result = retriever_node(state, {"configurable": {"thread_id": "t"}})
@@ -223,7 +226,7 @@ def test_retriever_node_keywords_are_lowercased():
     tasks = [SubTask(description="Task", keywords=["Machine Learning", "Deep Learning"])]
 
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
-        mock_fetch.return_value = ([], None)
+        mock_fetch.return_value = ([], None, False)
         state = ResearchState(query="test", messages=[], sub_tasks=tasks)
         retriever_node(state, {"configurable": {"thread_id": "t"}})
         mock_fetch.assert_called_once()

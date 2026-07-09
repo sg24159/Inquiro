@@ -21,12 +21,17 @@ def retriever_node(state: ResearchState, config) -> dict:
         return {"raw_results": [], "logs": logs}
 
     all_results: list[RawResult] = []
+    cache_hits = 0
+    total_queries = 0
     for idx, task in enumerate(sub_tasks):
         keywords = task.keywords
         if not keywords:
             continue
         query = " OR ".join(kw.strip().lower() for kw in keywords)
-        results, error = _fetch_arxiv(query, max_results=settings.arxiv_max_results)
+        results, error, hit = _fetch_arxiv(query, max_results=settings.arxiv_max_results)
+        total_queries += 1
+        if hit:
+            cache_hits += 1
         if error:
             logs.append(f"  [WARN] {error}")
         kw_log = f"  sub_task[{idx}]: {len(results)} results"
@@ -35,10 +40,11 @@ def retriever_node(state: ResearchState, config) -> dict:
             r.sub_task_idx = idx
         all_results.extend(results)
     deduplicated = _deduplicate(all_results)
+    cache_msg = f", {cache_hits}/{total_queries} from cache" if total_queries else ""
     logs.insert(
         0,
         f"[Retriever] Queried {len(sub_tasks)} sub-tasks, "
-        f"found {len(deduplicated)} unique results.",
+        f"found {len(deduplicated)} unique results{cache_msg}.",
     )
     logs.extend(validate_contract({"raw_results": deduplicated}, RetrieverOutput))
     return {
@@ -47,10 +53,10 @@ def retriever_node(state: ResearchState, config) -> dict:
     }
 
 
-def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str | None]:
+def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str | None, bool]:
     cached = _cache_load(query, max_results)
     if cached is not None:
-        return cached
+        return cached[0], cached[1], True
 
     params = {
         "search_query": query.strip(),
@@ -76,7 +82,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
         error = f"HTTP error querying arXiv for '{query}': {e}"
     except ET.ParseError as e:
         error = f"XML parse error for arXiv response on '{query}': {e}"
-    return results, error
+    return results, error, False
 
 
 def _deduplicate(results: list[RawResult]) -> list[RawResult]:
