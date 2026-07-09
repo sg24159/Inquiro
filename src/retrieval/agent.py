@@ -57,8 +57,8 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
         root = ET.fromstring(resp.text)
         ns = {"a": "http://www.w3.org/2005/Atom"}
         for entry in root.findall("a:entry", ns):
-            title = entry.findtext("a:title", "").replace("\n", " ").strip()
-            summary = entry.findtext("a:summary", "").replace("\n", " ").strip()
+            title = entry.findtext("a:title", "", ns).replace("\n", " ").strip()
+            summary = entry.findtext("a:summary", "", ns).replace("\n", " ").strip()
             link_el = entry.find("a:id", ns)
             source = link_el.text.strip() if link_el is not None else ""
             results.append(RawResult(source=source, title=title, snippet=summary[:500]))

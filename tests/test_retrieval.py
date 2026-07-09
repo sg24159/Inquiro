@@ -46,3 +46,29 @@ def test_retriever_node_empty_sub_tasks():
         assert result["raw_results"] == []
         mock_fetch.assert_not_called()
         assert any("[WARN]" in log for log in result["logs"])
+
+
+def test_retriever_node_with_sub_tasks():
+    """Valid sub-tasks → sub_task_idx assigned, overlapping results deduped."""
+    from shared.models import RawResult, SubTask
+
+    tasks = [
+        SubTask(description="Task A", keywords=["ml", "deep learning"]),
+        SubTask(description="Task B", keywords=["neural networks"]),
+    ]
+    paper_a = RawResult(source="s1", title="Paper A", snippet="Abstract A")
+    paper_b = RawResult(source="s2", title="Paper B", snippet="Abstract B")
+
+    with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
+        mock_fetch.side_effect = [
+            ([paper_a], None),    # Task A / keyword "ml"
+            ([paper_b], None),    # Task A / keyword "deep learning"
+            ([paper_b], None),    # Task B / keyword "neural networks" (overlap)
+        ]
+        state = ResearchState(query="test", messages=[], sub_tasks=tasks)
+        result = retriever_node(state, {"configurable": {"thread_id": "t"}})
+        mock_fetch.assert_called()
+        assert len(result["raw_results"]) == 2  # Paper B deduped
+        titles = {r.title for r in result["raw_results"]}
+        assert "Paper A" in titles
+        assert "Paper B" in titles

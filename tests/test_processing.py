@@ -83,3 +83,28 @@ def test_processor_node_skips_llm_on_empty():
         assert result["processed_findings"] == []
         mock.assert_not_called()
         assert any("[WARN]" in log for log in result["logs"])
+
+
+def test_processor_node_with_results():
+    """Valid raw_results → calls LLM, parses findings."""
+    results = [
+        RawResult(
+            source="s1",
+            title="Paper A",
+            snippet="This is a sufficiently long abstract about machine learning that passes the noise filter.",
+        ),
+    ]
+    with patch("shared.llm.get_llm") as mock:
+        llm_instance = MagicMock()
+        llm_instance.invoke.return_value = AIMessage(content=(
+            "FINDING|Machine learning is key|0.91|Paper A\n"
+            "FINDING|AI requires data|0.85|Paper A\n"
+        ))
+        mock.return_value = llm_instance
+        state = ResearchState(query="test", messages=[], raw_results=results)
+        result = processor_node(state, {"configurable": {"thread_id": "t"}})
+        assert len(result["processed_findings"]) == 2
+        assert result["processed_findings"][0].summary == "Machine learning is key"
+        assert abs(result["processed_findings"][0].relevance_score - 0.91) < 0.01
+        assert result["processed_findings"][1].summary == "AI requires data"
+        assert abs(result["processed_findings"][1].relevance_score - 0.85) < 0.01

@@ -30,7 +30,7 @@ def mock_httpx():
   <entry>
     <id>http://arxiv.org/abs/1234.56789</id>
     <title>Test Paper Title</title>
-    <summary>This is a test abstract for mocking purposes.</summary>
+    <summary>This is a sufficiently long test abstract with enough words to pass the noise filter threshold.</summary>
   </entry>
 </feed>"""
         mock.return_value.raise_for_status = MagicMock()
@@ -47,6 +47,29 @@ def mock_processor_llm():
                 "FINDING|Neural networks require large data|0.78|Test Paper\n"
             )
         )
+        mock.return_value = llm_instance
+        yield mock
+
+
+@pytest.fixture
+def mock_llm_chain():
+    """Mock that returns TASK| then FINDING| on successive calls (planner → processor)."""
+    with patch("shared.llm.get_llm") as mock:
+        llm_instance = MagicMock()
+        llm_instance.invoke.side_effect = [
+            AIMessage(
+                content=(
+                    "TASK|Investigate machine learning basics|ML, machine learning, algorithms\n"
+                    "TASK|Explore neural networks|neural networks, deep learning, backpropagation\n"
+                )
+            ),
+            AIMessage(
+                content=(
+                    "FINDING|Machine learning is a broad field|0.92|Test Paper\n"
+                    "FINDING|Neural networks require large data|0.78|Test Paper\n"
+                )
+            ),
+        ]
         mock.return_value = llm_instance
         yield mock
 

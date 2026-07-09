@@ -2,8 +2,33 @@ import json
 import tempfile
 from pathlib import Path
 
+from coordinator.state import ResearchState
 from shared.models import ProcessedFinding, SubTask
 from writing.agent import _save_assets
+
+
+def test_writer_node(tmp_path, monkeypatch):
+    """writer_node renders template, saves markdown + JSON with findings."""
+    monkeypatch.chdir(tmp_path)
+    from writing.agent import writer_node
+
+    tasks = [SubTask(description="Test Task", keywords=["ml"])]
+    findings = [
+        ProcessedFinding(summary="A finding", relevance_score=0.9, source="src"),
+    ]
+    state = ResearchState(
+        query="test",
+        messages=[],
+        sub_tasks=tasks,
+        processed_findings=findings,
+    )
+    result = writer_node(state, {"configurable": {"thread_id": "t"}})
+    assert result["report"] is not None
+    assert Path(result["report"].markdown_path).exists()
+    body = Path(result["report"].markdown_path).read_text()
+    assert "Test Task" in body
+    assert "A finding" in body
+    assert result["logs"][0].startswith("[Writer]")
 
 
 def test_save_assets_empty_findings(tmp_path, monkeypatch):
