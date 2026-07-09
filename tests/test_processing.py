@@ -85,6 +85,33 @@ def test_processor_node_skips_llm_on_empty():
         assert any("[WARN]" in log for log in result["logs"])
 
 
+def test_processor_node_all_results_filtered():
+    """When filter_noise removes everything, processor logs warning, skips LLM."""
+    results = [
+        RawResult(source="s", title="t", snippet="Short."),
+    ]
+    with patch("shared.llm.get_llm") as mock:
+        state = ResearchState(query="test", messages=[], raw_results=results)
+        result = processor_node(state, {"configurable": {"thread_id": "t"}})
+        assert result["processed_findings"] == []
+        mock.assert_not_called()
+        assert any("No raw results" in log for log in result["logs"])
+
+
+def test_parse_findings_source_from_last_segment():
+    """Source should be parsed from the LAST pipe-delimited segment.
+
+    If the summary contains extra pipes, the source is still found
+    by taking the final segment rather than a positional index.
+    """
+    text = "FINDING|Some summary with extra | pipe|0.85|Final Source"
+    result = _parse_findings(text)
+    assert len(result) == 1
+    assert result[0].summary == "Some summary with extra | pipe"
+    assert abs(result[0].relevance_score - 0.85) < 0.01
+    assert result[0].source == "Final Source"
+
+
 def test_processor_node_with_results():
     """Valid raw_results → calls LLM, parses findings."""
     results = [

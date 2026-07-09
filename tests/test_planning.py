@@ -66,3 +66,20 @@ def test_planner_node_malformed_llm():
         result = planner_node(state, {"configurable": {"thread_id": "t"}})
         assert len(result["sub_tasks"]) == 0
         assert any("[WARN]" in log for log in result["logs"])
+
+
+def test_parse_sub_tasks_comma_in_description():
+    """Description with commas must not consume the keyword segment.
+
+    LLMs naturally write prose descriptions like
+    'Analyze social media, focusing on depression'.
+    The keyword segment is the LAST pipe-delimited fragment.
+    """
+    text = (
+        "TASK|Analyze social media, focusing on depression|"
+        "social media, depression, teenagers"
+    )
+    result = _parse_sub_tasks(text)
+    assert len(result) == 1
+    assert result[0].description == "Analyze social media, focusing on depression"
+    assert result[0].keywords == ["social media", "depression", "teenagers"]

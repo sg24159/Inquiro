@@ -46,9 +46,11 @@ def processor_node(state: ResearchState, config) -> dict:
     logs.append(f"  Produced {len(findings)} scored findings.")
     if not findings:
         logs.append(
-            f"  [WARN] No FINDING| lines parsed from LLM response "
-            f"(first 300 chars: {response.content[:300]!r})"
+            f"  [WARN] No FINDING| lines parsed from LLM response"
         )
+    logs.append(
+        f"  Raw LLM response:\n{response.content}"
+    )
     logs.extend(validate_contract({"processed_findings": findings}, ProcessorOutput))
     return {
         "processed_findings": findings,
@@ -65,15 +67,17 @@ def _parse_findings(text: str) -> list[ProcessedFinding]:
             continue
         parts = cleaned.split("|")
         if len(parts) >= 4:
+            summary = "|".join(parts[1:-2]).strip()
             try:
-                score = float(parts[2])
+                score = float(parts[-2])
             except ValueError:
                 score = 0.5
+            source = parts[-1].strip()
             findings.append(
                 ProcessedFinding(
-                    summary=parts[1].strip(),
+                    summary=summary,
                     relevance_score=score,
-                    source=parts[3].strip(),
+                    source=source,
                 )
             )
     return findings

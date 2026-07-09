@@ -32,9 +32,11 @@ def planner_node(state: ResearchState, config) -> dict:
             logs.append(f"  TASK: {st.description} ({', '.join(st.keywords)})")
     else:
         logs.append(
-            f"  [WARN] No TASK| lines found in LLM response "
-            f"(first 300 chars: {response.content[:300]!r})"
+            f"  [WARN] No TASK| lines found in LLM response"
         )
+    logs.append(
+        f"  Raw LLM response:\n{response.content}"
+    )
     warnings.extend(
         validate_contract({"sub_tasks": sub_tasks}, PlannerOutput)
     )
@@ -54,7 +56,7 @@ def _parse_sub_tasks(text: str) -> list[SubTask]:
             continue
         parts = cleaned.split("|")
         if len(parts) >= 3:
-            desc = parts[1].strip()
-            keywords = [k.strip() for k in parts[2].split(",") if k.strip()]
+            desc = "|".join(parts[1:-1]).strip()
+            keywords = [k.strip() for k in parts[-1].split(",") if k.strip()]
             tasks.append(SubTask(description=desc, keywords=keywords))
     return tasks
