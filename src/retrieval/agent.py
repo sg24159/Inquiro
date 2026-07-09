@@ -49,7 +49,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
         return cached
 
     params = {
-        "search_query": f"all:{query}",
+        "search_query": f"abs:{query}",
         "max_results": max_results,
         "sortBy": "relevance",
     }
