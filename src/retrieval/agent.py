@@ -20,23 +20,25 @@ def retriever_node(state: ResearchState, config) -> dict:
         logs.extend(validate_contract({"raw_results": []}, RetrieverOutput))
         return {"raw_results": [], "logs": logs}
 
-    total_keywords = sum(len(t.keywords) for t in sub_tasks)
     all_results: list[RawResult] = []
     for idx, task in enumerate(sub_tasks):
-        for keyword in task.keywords:
-            results, error = _fetch_arxiv(keyword, max_results=settings.arxiv_max_results)
-            if error:
-                logs.append(f"  [WARN] {error}")
-            kw_log = f"  sub_task[{idx}] keyword '{keyword}': {len(results)} results"
-            logs.append(kw_log)
-            for r in results:
-                r.sub_task_idx = idx
-            all_results.extend(results)
+        keywords = task.keywords
+        if not keywords:
+            continue
+        query = " OR ".join(kw.strip().lower() for kw in keywords)
+        results, error = _fetch_arxiv(query, max_results=settings.arxiv_max_results)
+        if error:
+            logs.append(f"  [WARN] {error}")
+        kw_log = f"  sub_task[{idx}]: {len(results)} results"
+        logs.append(kw_log)
+        for r in results:
+            r.sub_task_idx = idx
+        all_results.extend(results)
     deduplicated = _deduplicate(all_results)
     logs.insert(
         0,
-        f"[Retriever] Queried {total_keywords} keyword sets across "
-        f"{len(sub_tasks)} sub-tasks, found {len(deduplicated)} unique results.",
+        f"[Retriever] Queried {len(sub_tasks)} sub-tasks, "
+        f"found {len(deduplicated)} unique results.",
     )
     logs.extend(validate_contract({"raw_results": deduplicated}, RetrieverOutput))
     return {
@@ -51,7 +53,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
         return cached
 
     params = {
-        "search_query": f"abs:{query.strip().lower()}",
+        "search_query": query.strip(),
         "max_results": max_results,
         "sortBy": "relevance",
     }

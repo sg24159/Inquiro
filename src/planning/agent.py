@@ -10,7 +10,7 @@ from shared.utils import strip_line_noise
 
 def planner_node(state: ResearchState, config) -> dict:
     warnings = validate_contract({"query": state.get("query", "")}, PlannerInput)
-    llm = llm_module.get_llm(temperature=0.3)
+    llm = llm_module.get_llm(temperature=0.2)
     system_prompt = agents_config["planner"]["system_prompt"]
     messages = [
         SystemMessage(content=system_prompt),
