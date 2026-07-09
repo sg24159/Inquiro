@@ -110,6 +110,32 @@ def test_fetch_arxiv_empty_query():
             assert isinstance(results, list)
 
 
+@patch("retrieval.agent._cache_load", return_value=None)
+def test_fetch_arxiv_preserves_case(mock_cache):
+    """Search query should not be lowercased — keywords like OR, AND must survive."""
+    with patch("retrieval.agent.httpx.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.text = """<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"></feed>"""
+        mock_get.return_value.raise_for_status = MagicMock()
+        _fetch_arxiv("Machine Learning AND Neural Networks", max_results=3)
+        call_kwargs = mock_get.call_args
+        assert call_kwargs.kwargs["params"]["search_query"] == "Machine Learning AND Neural Networks"
+
+
+@patch("retrieval.agent._cache_load", return_value=None)
+def test_fetch_arxiv_strips_whitespace(mock_cache):
+    """Query should be stripped but not lowercased."""
+    with patch("retrieval.agent.httpx.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.text = """<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"></feed>"""
+        mock_get.return_value.raise_for_status = MagicMock()
+        _fetch_arxiv("  Quantum Computing  ", max_results=3)
+        call_kwargs = mock_get.call_args
+        assert call_kwargs.kwargs["params"]["search_query"] == "Quantum Computing"
+
+
 def test_cache_load_corrupted_file(tmp_path, monkeypatch):
     """Corrupted cache file should return None (not raise)."""
     monkeypatch.setattr("config.settings.get_settings", lambda: MagicMock(outputs_dir=str(tmp_path)))
@@ -146,9 +172,6 @@ def test_retriever_node_empty_sub_tasks():
 
 def test_retriever_node_with_sub_tasks():
     """Valid sub-tasks → sub_task_idx assigned, overlapping results deduped."""
-    tasks = [
-        RawResult(source="s1", title="Paper A", snippet="Abstract A"),
-    ]
     from shared.models import SubTask
 
     task_list = [
@@ -162,7 +185,6 @@ def test_retriever_node_with_sub_tasks():
         mock_fetch.side_effect = [
             ([paper_a], None),
             ([paper_b], None),
-            ([paper_b], None),
         ]
         state = ResearchState(query="test", messages=[], sub_tasks=task_list)
         result = retriever_node(state, {"configurable": {"thread_id": "t"}})
@@ -174,10 +196,13 @@ def test_retriever_node_with_sub_tasks():
 
 
 def test_retriever_node_partial_failure():
-    """Some keywords fail, others succeed → partial results with warning."""
+    """Some sub-tasks fail, others succeed → partial results with warning."""
     from shared.models import SubTask
 
-    tasks = [SubTask(description="Task A", keywords=["ml", "broken"])]
+    tasks = [
+        SubTask(description="Task A", keywords=["ml", "deep"]),
+        SubTask(description="Task B", keywords=["broken"]),
+    ]
     paper = RawResult(source="s1", title="Paper A", snippet="Abstract A")
 
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
@@ -189,3 +214,18 @@ def test_retriever_node_partial_failure():
         result = retriever_node(state, {"configurable": {"thread_id": "t"}})
         assert len(result["raw_results"]) == 1
         assert any("[WARN]" in log for log in result["logs"])
+
+
+def test_retriever_node_keywords_are_lowercased():
+    """Keywords should be lowercased and joined with OR before querying arXiv."""
+    from shared.models import SubTask
+
+    tasks = [SubTask(description="Task", keywords=["Machine Learning", "Deep Learning"])]
+
+    with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
+        mock_fetch.return_value = ([], None)
+        state = ResearchState(query="test", messages=[], sub_tasks=tasks)
+        retriever_node(state, {"configurable": {"thread_id": "t"}})
+        mock_fetch.assert_called_once()
+        query_arg = mock_fetch.call_args.args[0]
+        assert query_arg == "machine learning OR deep learning"
