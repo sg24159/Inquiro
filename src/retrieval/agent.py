@@ -4,7 +4,7 @@ from coordinator.state import ResearchState
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
 from shared.models import RawResult
 
-ARXIV_URL = "http://export.arxiv.org/api/query"
+ARXIV_URL = "https://export.arxiv.org/api/query"
 
 
 def retriever_node(state: ResearchState, config) -> dict:
