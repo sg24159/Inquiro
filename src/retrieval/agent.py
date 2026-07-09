@@ -1,6 +1,7 @@
 import httpx
 
 from coordinator.state import ResearchState
+from retrieval.tools import _cache_load, _cache_store
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
 from shared.models import RawResult
 
@@ -43,6 +44,10 @@ def retriever_node(state: ResearchState, config) -> dict:
 
 
 def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str | None]:
+    cached = _cache_load(query, max_results)
+    if cached is not None:
+        return cached
+
     params = {
         "search_query": f"all:{query}",
         "max_results": max_results,
@@ -62,6 +67,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
             link_el = entry.find("a:id", ns)
             source = link_el.text.strip() if link_el is not None else ""
             results.append(RawResult(source=source, title=title, snippet=summary[:500]))
+        _cache_store(query, max_results, results, error)
     except httpx.HTTPError as e:
         error = f"HTTP error querying arXiv for '{query}': {e}"
     except ET.ParseError as e:
