@@ -69,12 +69,7 @@ def test_planner_node_malformed_llm():
 
 
 def test_parse_sub_tasks_comma_in_description():
-    """Description with commas must not consume the keyword segment.
-
-    LLMs naturally write prose descriptions like
-    'Analyze social media, focusing on depression'.
-    The keyword segment is the LAST pipe-delimited fragment.
-    """
+    """Description with commas must not consume the keyword segment."""
     text = (
         "TASK|Analyze social media, focusing on depression|"
         "social media, depression, teenagers"

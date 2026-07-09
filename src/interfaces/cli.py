@@ -44,7 +44,7 @@ def main():
                     for pf in sorted(
                         update["processed_findings"], key=lambda x: x.relevance_score, reverse=True
                     ):
-                        tbl.add_row(pf.summary[:50], f"{pf.relevance_score:.2f}", pf.source[:40])
+                        tbl.add_row(pf.summary[:50], str(pf.relevance_score), pf.source[:40])
                     console.print(tbl)
                 if "report" in update and update["report"]:
                     r = update["report"]

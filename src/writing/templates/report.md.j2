@@ -16,7 +16,7 @@
 ## Findings
 
 {% for f in findings %}
-### Finding {{ loop.index }} (relevance: {{ "%.2f"|format(f.relevance_score) }})
+### Finding {{ loop.index }} (relevance: {{ f.relevance_score }})
 
 **{{ f.summary }}**
 

@@ -1,5 +1,6 @@
 import httpx
 
+from config.settings import settings
 from coordinator.state import ResearchState
 from retrieval.tools import _cache_load, _cache_store
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
@@ -22,7 +23,7 @@ def retriever_node(state: ResearchState, config) -> dict:
     all_results: list[RawResult] = []
     for idx, task in enumerate(sub_tasks):
         for keyword in task.keywords:
-            results, error = _fetch_arxiv(keyword, max_results=3)
+            results, error = _fetch_arxiv(keyword, max_results=settings.arxiv_max_results)
             if error:
                 logs.append(f"  [WARN] {error}")
             kw_log = f"  sub_task[{idx}] keyword '{keyword}': {len(results)} results"
@@ -49,7 +50,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
         return cached
 
     params = {
-        "search_query": f"abs:{query}",
+        "search_query": f"abs:{query.strip().lower()}",
         "max_results": max_results,
         "sortBy": "relevance",
     }
@@ -66,7 +67,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
             summary = entry.findtext("a:summary", "", ns).replace("\n", " ").strip()
             link_el = entry.find("a:id", ns)
             source = link_el.text.strip() if link_el is not None else ""
-            results.append(RawResult(source=source, title=title, snippet=summary[:500]))
+            results.append(RawResult(source=source, title=title, snippet=summary[:2000]))
         _cache_store(query, max_results, results, error)
     except httpx.HTTPError as e:
         error = f"HTTP error querying arXiv for '{query}': {e}"

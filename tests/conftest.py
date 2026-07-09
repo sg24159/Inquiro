@@ -53,7 +53,7 @@ def mock_processor_llm():
 
 @pytest.fixture
 def mock_llm_chain():
-    """Mock that returns TASK| then FINDING| on successive calls (planner → processor)."""
+    """Mock that returns TASK|, then score, then summary on successive invoke calls."""
     with patch("shared.llm.get_llm") as mock:
         llm_instance = MagicMock()
         llm_instance.invoke.side_effect = [
@@ -63,12 +63,8 @@ def mock_llm_chain():
                     "TASK|Explore neural networks|neural networks, deep learning, backpropagation\n"
                 )
             ),
-            AIMessage(
-                content=(
-                    "FINDING|Machine learning is a broad field|0.92|Test Paper\n"
-                    "FINDING|Neural networks require large data|0.78|Test Paper\n"
-                )
-            ),
+            AIMessage(content="##final score: 2"),
+            AIMessage(content="FINDING|Machine learning is a broad field that enables computers to learn."),
         ]
         mock.return_value = llm_instance
         yield mock

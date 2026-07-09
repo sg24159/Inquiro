@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage
 
-from processing.agent import _parse_findings, processor_node
+from processing.agent import _parse_score, _parse_summary, processor_node
 from processing.tools import filter_noise, jaccard_similarity
 from coordinator.state import ResearchState
 from shared.models import RawResult
@@ -34,45 +34,62 @@ def test_filter_noise_deduplicates():
     assert len(filtered) == 1
 
 
-def test_parse_findings():
+def test_parse_score():
+    text = "##final score: 3"
+    result = _parse_score(text)
+    assert result == 3
+
+
+def test_parse_score_empty():
+    assert _parse_score("") == -1
+
+
+def test_parse_score_with_markdown_noise():
+    text = "- ##final score: 2"
+    result = _parse_score(text)
+    assert result == 2
+
+
+def test_parse_score_with_preamble():
     text = (
-        "FINDING|Key insight found|0.92|Source A\n"
-        "FINDING|Another key point|0.85|Source B\n"
-    )
-    result = _parse_findings(text)
-    assert len(result) == 2
-    assert abs(result[0].relevance_score - 0.92) < 0.01
-    assert result[0].source == "Source A"
-
-
-def test_parse_findings_empty():
-    assert _parse_findings("") == []
-
-
-def test_parse_findings_with_markdown_noise():
-    """Should strip markdown list prefixes before matching FINDING|."""
-    text = (
-        "- FINDING|Key insight|0.9|Source A\n"
-        "* FINDING|Another point|0.8|Source B"
-    )
-    result = _parse_findings(text)
-    assert len(result) == 2
-    assert result[0].summary == "Key insight"
-    assert result[1].summary == "Another point"
-
-
-def test_parse_findings_with_preamble():
-    """Non-matching lines before/after FINDING| should be skipped."""
-    text = (
-        "Here are the summarized results:\n"
-        "FINDING|First finding|0.9|Source A\n"
-        "FINDING|Second finding|0.8|Source B\n"
+        "Here is my analysis:\n"
+        "##final score: 3\n"
         "--- end ---"
     )
-    result = _parse_findings(text)
-    assert len(result) == 2
-    assert result[0].summary == "First finding"
-    assert result[1].summary == "Second finding"
+    result = _parse_score(text)
+    assert result == 3
+
+
+def test_parse_score_case_insensitive():
+    text = "##FINAL SCORE: 1"
+    result = _parse_score(text)
+    assert result == 1
+
+
+def test_parse_summary():
+    text = "FINDING|Key insight about machine learning"
+    result = _parse_summary(text)
+    assert result == "Key insight about machine learning"
+
+
+def test_parse_summary_empty():
+    assert _parse_summary("") is None
+
+
+def test_parse_summary_with_markdown_noise():
+    text = "- FINDING|Key insight\n"
+    result = _parse_summary(text)
+    assert result == "Key insight"
+
+
+def test_parse_summary_with_preamble():
+    text = (
+        "Here is the summary:\n"
+        "FINDING|Key insight\n"
+        "--- end ---"
+    )
+    result = _parse_summary(text)
+    assert result == "Key insight"
 
 
 def test_processor_node_skips_llm_on_empty():
@@ -98,22 +115,8 @@ def test_processor_node_all_results_filtered():
         assert any("No raw results" in log for log in result["logs"])
 
 
-def test_parse_findings_source_from_last_segment():
-    """Source should be parsed from the LAST pipe-delimited segment.
-
-    If the summary contains extra pipes, the source is still found
-    by taking the final segment rather than a positional index.
-    """
-    text = "FINDING|Some summary with extra | pipe|0.85|Final Source"
-    result = _parse_findings(text)
-    assert len(result) == 1
-    assert result[0].summary == "Some summary with extra | pipe"
-    assert abs(result[0].relevance_score - 0.85) < 0.01
-    assert result[0].source == "Final Source"
-
-
-def test_processor_node_with_results():
-    """Valid raw_results → calls LLM, parses findings."""
+def test_processor_node_below_threshold():
+    """Papers scoring below threshold should be dropped."""
     results = [
         RawResult(
             source="s1",
@@ -122,18 +125,34 @@ def test_processor_node_with_results():
         ),
     ]
     with patch("shared.llm.get_llm") as mock:
-        llm_instance = MagicMock()
-        llm_instance.invoke.return_value = AIMessage(content=(
-            "FINDING|Machine learning is key|0.91|Paper A\n"
-            "FINDING|AI requires data|0.85|Paper A\n"
-        ))
-        mock.return_value = llm_instance
+        scorer = MagicMock()
+        scorer.invoke.return_value = AIMessage(content="##final score: 1")
+        summarizer = MagicMock()
+        mock.side_effect = [scorer, summarizer]
         state = ResearchState(query="test", messages=[], raw_results=results)
         result = processor_node(state, {"configurable": {"thread_id": "t"}})
-        assert len(result["processed_findings"]) == 2
+        assert result["processed_findings"] == []
+        assert any("skipped" in log for log in result["logs"])
+
+
+def test_processor_node_with_results():
+    """Valid raw_results → scores then summarizes, returns findings above threshold."""
+    results = [
+        RawResult(
+            source="s1",
+            title="Paper A",
+            snippet="This is a sufficiently long abstract about machine learning that passes the noise filter.",
+        ),
+    ]
+    with patch("shared.llm.get_llm") as mock:
+        scorer = MagicMock()
+        scorer.invoke.return_value = AIMessage(content="##final score: 3")
+        summarizer = MagicMock()
+        summarizer.invoke.return_value = AIMessage(content="FINDING|Machine learning is key")
+        mock.side_effect = [scorer, summarizer]
+        state = ResearchState(query="test", messages=[], raw_results=results)
+        result = processor_node(state, {"configurable": {"thread_id": "t"}})
+        assert len(result["processed_findings"]) == 1
         assert result["processed_findings"][0].summary == "Machine learning is key"
-        assert abs(result["processed_findings"][0].relevance_score - 0.91) < 0.01
+        assert result["processed_findings"][0].relevance_score == 3
         assert result["processed_findings"][0].source_url == "s1"
-        assert result["processed_findings"][1].summary == "AI requires data"
-        assert abs(result["processed_findings"][1].relevance_score - 0.85) < 0.01
-        assert result["processed_findings"][1].source_url == "s1"

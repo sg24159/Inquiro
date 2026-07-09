@@ -19,7 +19,7 @@ def planner_node(state: ResearchState, config) -> dict:
             "Break this query into 3-5 focused sub-tasks. "
             "For each sub-task, provide:\n"
             "- A description of what to investigate\n"
-            "- 3-5 search keywords suitable for querying arxiv\n\n"
+            "- 3-5 specific search keywords (terms likely to appear in paper titles, not generic descriptions)\n\n"
             "Output format:\n"
             "TASK|description|keyword1, keyword2, keyword3"
         )),
@@ -55,8 +55,9 @@ def _parse_sub_tasks(text: str) -> list[SubTask]:
         if not cleaned.startswith("TASK|"):
             continue
         parts = cleaned.split("|")
-        if len(parts) >= 3:
-            desc = "|".join(parts[1:-1]).strip()
-            keywords = [k.strip() for k in parts[-1].split(",") if k.strip()]
-            tasks.append(SubTask(description=desc, keywords=keywords))
+        if len(parts) < 3:
+            continue
+        desc = parts[1].strip()
+        keywords = [k.strip() for k in parts[2].split(",") if k.strip()]
+        tasks.append(SubTask(description=desc, keywords=keywords))
     return tasks

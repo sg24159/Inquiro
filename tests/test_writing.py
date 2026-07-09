@@ -14,7 +14,7 @@ def test_writer_node(tmp_path, monkeypatch):
 
     tasks = [SubTask(description="Test Task", keywords=["ml"])]
     findings = [
-        ProcessedFinding(summary="A finding", relevance_score=0.9, source="src"),
+        ProcessedFinding(summary="A finding", relevance_score=2, source="src"),
     ]
     state = ResearchState(
         query="test",
@@ -45,7 +45,7 @@ def test_save_assets_empty_findings(tmp_path, monkeypatch):
 def test_save_assets_creates_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     findings = [
-        ProcessedFinding(summary="First finding", relevance_score=0.9, source="src_a"),
+        ProcessedFinding(summary="First finding", relevance_score=3, source="src_a"),
     ]
     sub_tasks = [
         SubTask(description="Test task", keywords=["ml", "ai"]),

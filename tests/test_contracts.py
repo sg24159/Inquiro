@@ -47,7 +47,7 @@ def test_processor_input_valid():
 
 
 def test_processor_output_valid():
-    findings = [ProcessedFinding(summary="s", relevance_score=0.5, source="src")]
+    findings = [ProcessedFinding(summary="s", relevance_score=2, source="src")]
     assert validate_contract({"processed_findings": findings}, ProcessorOutput) == []
 
 
@@ -56,16 +56,16 @@ def test_processor_output_score_out_of_range():
     from pydantic import ValidationError
 
     try:
-        ProcessedFinding(summary="s", relevance_score=1.5, source="src")
+        ProcessedFinding(summary="s", relevance_score=4, source="src")
     except ValidationError:
         pass
     else:
-        raise AssertionError("Expected ValidationError for score > 1.0")
+        raise AssertionError("Expected ValidationError for score > 3")
 
 
 def test_writer_input_valid():
     tasks = [SubTask(description="Test", keywords=["a"])]
-    findings = [ProcessedFinding(summary="s", relevance_score=0.5, source="src")]
+    findings = [ProcessedFinding(summary="s", relevance_score=2, source="src")]
     data = {"query": "test", "sub_tasks": tasks, "processed_findings": findings}
     assert validate_contract(data, WriterInput) == []
 

@@ -10,7 +10,7 @@ CACHE_DIR = Path("outputs") / "arxiv_cache"
 
 
 def _cache_key(query: str, max_results: int) -> str:
-    raw = f"{query}|{max_results}".encode()
+    raw = f"{query.strip().lower()}|{max_results}".encode()
     return sha256(raw).hexdigest()
 
 
