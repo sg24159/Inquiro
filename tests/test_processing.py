@@ -133,5 +133,7 @@ def test_processor_node_with_results():
         assert len(result["processed_findings"]) == 2
         assert result["processed_findings"][0].summary == "Machine learning is key"
         assert abs(result["processed_findings"][0].relevance_score - 0.91) < 0.01
+        assert result["processed_findings"][0].source_url == "s1"
         assert result["processed_findings"][1].summary == "AI requires data"
         assert abs(result["processed_findings"][1].relevance_score - 0.85) < 0.01
+        assert result["processed_findings"][1].source_url == "s1"

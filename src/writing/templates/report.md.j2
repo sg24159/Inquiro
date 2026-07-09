@@ -20,7 +20,7 @@
 
 **{{ f.summary }}**
 
-*Source: {{ f.source }}*
+*Source: {% if f.source_url %}[{{ f.source }}]({{ f.source_url }}){% else %}{{ f.source }}{% endif %}*
 
 {% endfor %}
 

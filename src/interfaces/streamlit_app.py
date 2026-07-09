@@ -1,3 +1,4 @@
+import time
 import uuid
 from pathlib import Path
 
@@ -50,22 +51,32 @@ if prompt := st.chat_input("Enter your research query..."):
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
-        status = st.empty()
         report_placeholder = st.empty()
+        log_buffer: list[tuple[str, float, str]] = []
         config = {"configurable": {"thread_id": st.session_state.session_id}}
-        with st.spinner("Running research pipeline..."):
-            for event in st.session_state.graph.stream(
-                {"query": prompt, "messages": []}, config, stream_mode="updates"
-            ):
-                for node, update in event.items():
-                    for log in update.get("logs", []):
-                        status.info(log)
-                    if "report" in update and update["report"]:
-                        st.session_state.report = update["report"]
-                        report = update["report"]
-                        md_path = Path(report.markdown_path)
-                        body = md_path.read_text() if md_path.exists() else "# Report"
-                        report_placeholder.markdown(body)
-                        st.session_state.messages.append(
-                            {"role": "assistant", "content": body}
-                        )
+        st.info("Running research pipeline…")
+        last_time = time.time()
+        for event in st.session_state.graph.stream(
+            {"query": prompt, "messages": []}, config, stream_mode="updates"
+        ):
+            now = time.time()
+            elapsed = now - last_time
+            last_time = now
+            for node, update in event.items():
+                if "report" in update and update["report"]:
+                    st.session_state.report = update["report"]
+                    report = update["report"]
+                    md_path = Path(report.markdown_path)
+                    body = md_path.read_text() if md_path.exists() else "# Report"
+                    report_placeholder.markdown(body)
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": body}
+                    )
+                all_logs = "\n".join(update.get("logs", []))
+                if all_logs:
+                    log_buffer.append((node, elapsed, all_logs))
+        if log_buffer:
+            st.markdown("## Logs")
+            for node, elapsed, text in log_buffer:
+                with st.expander(f"✅ `{node}` — {elapsed:.1f}s", expanded=False):
+                    st.code(text)

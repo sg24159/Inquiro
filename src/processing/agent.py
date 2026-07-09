@@ -21,40 +21,37 @@ def processor_node(state: ResearchState, config) -> dict:
     if not filtered:
         logs.append("  [WARN] No raw results to process — skipping LLM call.")
         logs.extend(validate_contract({"processed_findings": []}, ProcessorOutput))
-        return {
-            "processed_findings": [],
-            "logs": logs,
-        }
+        return {"processed_findings": [], "logs": logs}
 
-    context_lines = "\n".join(
-        f"[{i}] {r.title}\n    {r.snippet[:200]}" for i, r in enumerate(filtered)
-    )
     llm = llm_module.get_llm(temperature=0.2)
     system_prompt = agents_config["processor"]["system_prompt"]
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=(
-            "Summarise and score the following research results "
-            "(relevance 0-1). Output one line per result:\n\n"
-            f"{context_lines}\n\n"
-            "Output format:\n"
-            "FINDING|summary|relevance_score|source_title"
-        )),
-    ]
-    response = llm.invoke(messages)
-    findings = _parse_findings(response.content)
-    logs.append(f"  Produced {len(findings)} scored findings.")
+    findings = []
+
+    for r in filtered:
+        context = f"Title: {r.title}\nURL: {r.source}\nAbstract: {r.snippet[:200]}"
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=(
+                "Summarise and score the following research result "
+                "(relevance 0-1).\n\n"
+                f"{context}\n\n"
+                "Output format:\n"
+                "FINDING|summary|relevance_score|source_title"
+            )),
+        ]
+        response = llm.invoke(messages)
+        parsed = _parse_findings(response.content)
+        for f in parsed:
+            f.source_url = r.source
+            findings.append(f)
+        logs.append(f"  Raw LLM response:\n{response.content}")
+
+    logs.append(f"  Produced {len(findings)} scored findings across {len(filtered)} papers.")
     if not findings:
-        logs.append(
-            f"  [WARN] No FINDING| lines parsed from LLM response"
-        )
-    logs.append(
-        f"  Raw LLM response:\n{response.content}"
-    )
+        logs.append("  [WARN] No FINDING| lines parsed from any LLM response.")
     logs.extend(validate_contract({"processed_findings": findings}, ProcessorOutput))
     return {
         "processed_findings": findings,
-        "messages": [response],
         "logs": logs,
     }
 

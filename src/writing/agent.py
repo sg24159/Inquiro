@@ -53,7 +53,7 @@ def _save_assets(
     out = Path("outputs")
     out.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:50]
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:50].strip("-_")
     stem = f"{ts}_{safe}"
 
     md_path = out / f"{stem}.md"
@@ -75,6 +75,7 @@ def _save_assets(
                         "summary": f.summary,
                         "relevance_score": f.relevance_score,
                         "source": f.source,
+                        "source_url": f.source_url,
                     }
                     for f in findings
                 ],

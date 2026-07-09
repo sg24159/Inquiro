@@ -17,6 +17,7 @@ class ProcessedFinding(BaseModel):
     summary: str = Field(description="Concise summary")
     relevance_score: float = Field(description="Relevance 0-1", ge=0, le=1)
     source: str = Field(description="Source URL or citation")
+    source_url: str = Field(default="", description="Clickable link to source")
     title: str = Field(default="", description="Original title")
 
 
