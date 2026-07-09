@@ -22,8 +22,11 @@ services:
 
   inquiro:
     build: .
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "8501:8501"
+    volumes:
+      - ./outputs:/app/outputs
     environment:
       - LLM_BASE_URL=http://ollama:11434/v1
       - LLM_MODEL=mistral
