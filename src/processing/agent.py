@@ -55,10 +55,15 @@ def processor_node(state: ResearchState, config) -> dict:
                 relevance_score=score,
                 source=r.title,
                 source_url=r.source,
+                year=r.published[:4] if r.published else "",
             )
         )
         logs.append(f"  Paper '{r.title[:60]}': score={score} — included.")
 
+    findings.sort(
+        key=lambda f: (f.year or "0", f.relevance_score),
+        reverse=True,
+    )
     logs.append(
         f"  Produced {len(findings)} findings across {len(filtered)} papers "
         f"(threshold={threshold})."
@@ -130,6 +135,7 @@ def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
 def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
     findings_text = "\n\n".join(
         f"Paper: {f.source}\n"
+        f"Year: {f.year}\n"
         f"Relevance: {f.relevance_score}/3\n"
         f"Summary: {f.summary}"
         for f in findings

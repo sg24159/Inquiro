@@ -21,6 +21,7 @@ class ProcessedFinding(BaseModel):
     source: str = Field(description="Source URL or citation")
     source_url: str = Field(default="", description="Clickable link to source")
     title: str = Field(default="", description="Original title")
+    year: str = Field(default="", description="Publication year")
 
 
 class ReportAssets(BaseModel):

@@ -201,6 +201,7 @@ def test_filter_noise_single_item():
 def test_synthesize_answer():
     """_synthesize_answer returns the LLM response content."""
     from processing.agent import _synthesize_answer
+    from shared.models import ProcessedFinding
 
     llm = MagicMock()
     llm.invoke.return_value = AIMessage(content="Synthesized answer text.")
@@ -208,6 +209,38 @@ def test_synthesize_answer():
         llm, "Prompt {query} {findings}", "test query", []
     )
     assert result == "Synthesized answer text."
+
+
+def test_processor_node_sorts_findings():
+    """processor_node sorts findings by year desc, then score desc."""
+    from processing.agent import processor_node, _score_paper, _summarize_paper
+    from shared.models import ProcessedFinding, RawResult
+
+    raw_results = [
+        RawResult(source="s1", title="Alpha Research", snippet="some long snippet text here that is more than ten words long for sure", authors=[], published="2020-01-01"),
+        RawResult(source="s2", title="Beta Discovery", snippet="some long snippet text here that is more than ten words long for sure", authors=[], published="2020-01-01"),
+        RawResult(source="s3", title="Gamma Findings", snippet="some long snippet text here that is more than ten words long for sure", authors=[], published="2023-01-01"),
+        RawResult(source="s4", title="Delta Results", snippet="some long snippet text here that is more than ten words long for sure", authors=[], published="2023-01-01"),
+    ]
+    with patch("processing.agent._score_paper") as mock_score, \
+         patch("processing.agent._summarize_paper") as mock_summary, \
+         patch("processing.agent._synthesize_answer") as mock_synth:
+        mock_score.side_effect = lambda llm, p, q, r: {"s1": 2, "s2": 3, "s3": 1, "s4": 3}[r.source]
+        mock_summary.return_value = "Some summary."
+        mock_synth.return_value = ""
+        settings = MagicMock()
+        settings.relevance_threshold = 1
+        with patch("processing.agent.get_settings", return_value=settings):
+            result = processor_node({"raw_results": raw_results, "query": "q", "logs": []}, None)
+    findings = result["processed_findings"]
+    assert len(findings) == 4
+    titles = [f.source for f in findings]
+    assert titles == [
+        "Delta Results",   # s4: 2023, score 3
+        "Gamma Findings",  # s3: 2023, score 1
+        "Beta Discovery",  # s2: 2020, score 3
+        "Alpha Research",  # s1: 2020, score 2
+    ], f"Got {titles}"
 
 
 def test_processor_node_synthesis_empty_when_no_findings():

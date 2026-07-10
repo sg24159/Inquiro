@@ -64,6 +64,8 @@ processor:
     Rules:
     - The FIRST SENTENCE must directly answer the query. Start with
       the answer, not with "Research has shown..." or "Paper X..."
+    - Findings are sorted by year (most recent first). More recent
+      work is generally more definitive.
     - If a finding does not help answer the query, do not mention it.
     - Cite papers by title in parentheses as inline evidence.
     - Subsequent sentences provide supporting evidence from relevant
