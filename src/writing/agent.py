@@ -11,9 +11,15 @@ def writer_node(state: ResearchState, config) -> dict:
     query = state.get("query", "Research Report")
     sub_tasks = state.get("sub_tasks", [])
     findings = state.get("processed_findings", [])
+    synthesized_answer = state.get("synthesized_answer", "")
     all_logs = state.get("logs", [])
     warnings = validate_contract(
-        {"query": query, "sub_tasks": sub_tasks, "processed_findings": findings},
+        {
+            "query": query,
+            "sub_tasks": sub_tasks,
+            "processed_findings": findings,
+            "synthesized_answer": synthesized_answer,
+        },
         WriterInput,
     )
     env = Environment(loader=PackageLoader("writing", "templates"))
@@ -21,6 +27,7 @@ def writer_node(state: ResearchState, config) -> dict:
         title=query,
         sub_tasks=sub_tasks,
         findings=findings,
+        synthesized_answer=synthesized_answer,
     )
     assets = _save_assets(
         title=query,
@@ -28,6 +35,7 @@ def writer_node(state: ResearchState, config) -> dict:
         findings=findings,
         query=query,
         sub_tasks=sub_tasks,
+        synthesized_answer=synthesized_answer,
         logs=all_logs,
     )
     logs = [f"[Writer] Saved report to {assets.markdown_path}"]
@@ -45,6 +53,7 @@ def _save_assets(
     findings: list,
     query: str = "",
     sub_tasks: list[SubTask] | None = None,
+    synthesized_answer: str = "",
     logs: list[str] | None = None,
 ) -> ReportAssets:
     from datetime import datetime
@@ -80,6 +89,7 @@ def _save_assets(
                     }
                     for f in findings
                 ],
+                "synthesized_answer": synthesized_answer,
                 "logs": logs or [],
             },
             indent=2,

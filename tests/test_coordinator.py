@@ -48,6 +48,7 @@ def test_graph_execution_full_chain(mock_llm_chain, mock_httpx, tmp_path, monkey
     assert len(final.values["sub_tasks"]) >= 1
     assert len(final.values["raw_results"]) >= 1
     assert len(final.values["processed_findings"]) >= 1
+    assert final.values["synthesized_answer"] != ""
     assert final.values["report"] is not None
     assert any("[WARN]" not in log for log in final.values["logs"])
 

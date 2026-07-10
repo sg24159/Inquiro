@@ -7,6 +7,23 @@ from pathlib import Path
 from shared.models import RawResult
 
 
+def _format_title_query(keywords: list[str]) -> str:
+    """Build an arXiv title-only OR query from keywords.
+
+    Multi-word keywords are wrapped in quotes for exact-phrase matching.
+    """
+    parts = []
+    for kw in keywords:
+        kw = kw.strip().lower()
+        if not kw:
+            continue
+        if " " in kw:
+            parts.append(f'ti:"{kw}"')
+        else:
+            parts.append(f"ti:{kw}")
+    return " OR ".join(parts)
+
+
 def _cache_dir() -> Path:
     from config.settings import get_settings
     return Path(get_settings().outputs_dir) / "arxiv_cache"

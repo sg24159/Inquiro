@@ -26,11 +26,12 @@
 
 ---
 
-## Summary
+## Synthesized Answer
 
-{% if findings %}
-This report synthesises {{ findings | length }} processed findings
-across {{ sub_tasks | length }} research sub-tasks.
+{% if synthesized_answer %}
+{{ synthesized_answer }}
+{% elif findings %}
+A synthesized answer was not produced from the findings.
 {% else %}
-No findings were generated.
+No findings were generated, so a synthesized answer could not be produced.
 {% endif %}

@@ -2,7 +2,7 @@ import httpx
 
 from config.settings import get_settings
 from coordinator.state import ResearchState
-from retrieval.tools import _cache_load, _cache_store
+from retrieval.tools import _cache_load, _cache_store, _format_title_query
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
 from shared.models import RawResult
 
@@ -27,7 +27,7 @@ def retriever_node(state: ResearchState, config) -> dict:
         keywords = task.keywords
         if not keywords:
             continue
-        query = " OR ".join(kw.strip().lower() for kw in keywords)
+        query = _format_title_query(keywords)
         results, error, hit = _fetch_arxiv(query, max_results=settings.arxiv_max_results)
         total_queries += 1
         if hit:
@@ -76,7 +76,21 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
             summary = entry.findtext("a:summary", "", ns).replace("\n", " ").strip()
             link_el = entry.find("a:id", ns)
             source = link_el.text.strip() if link_el is not None else ""
-            results.append(RawResult(source=source, title=title, snippet=summary[:2000]))
+            authors = [
+                author.findtext("a:name", "", ns).strip()
+                for author in entry.findall("a:author", ns)
+                if author.findtext("a:name", "", ns).strip()
+            ]
+            published = entry.findtext("a:published", "", ns).strip()
+            results.append(
+                RawResult(
+                    source=source,
+                    title=title,
+                    snippet=summary[:2000],
+                    authors=authors,
+                    published=published,
+                )
+            )
         _cache_store(query, max_results, results, error)
     except httpx.HTTPError as e:
         error = f"HTTP error querying arXiv for '{query}': {e}"

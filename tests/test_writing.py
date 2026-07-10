@@ -28,7 +28,31 @@ def test_writer_node(tmp_path, monkeypatch):
     body = Path(result["report"].markdown_path).read_text()
     assert "Test Task" in body
     assert "A finding" in body
+    assert "Synthesized Answer" in body
+    assert "was not produced" in body
     assert result["logs"][0].startswith("[Writer]")
+
+
+def test_writer_node_with_synthesized_answer(tmp_path, monkeypatch):
+    """When synthesized_answer is set, it appears in the report."""
+    monkeypatch.chdir(tmp_path)
+    from writing.agent import writer_node
+
+    tasks = [SubTask(description="Test Task", keywords=["ml"])]
+    findings = [
+        ProcessedFinding(summary="A finding", relevance_score=2, source="src"),
+    ]
+    state = ResearchState(
+        query="test",
+        messages=[],
+        sub_tasks=tasks,
+        processed_findings=findings,
+        synthesized_answer="Machine learning is a key field.",
+    )
+    result = writer_node(state, {"configurable": {"thread_id": "t"}})
+    body = Path(result["report"].markdown_path).read_text()
+    assert "Machine learning is a key field." in body
+    assert "was not produced" not in body
 
 
 def test_save_assets_empty_findings(tmp_path, monkeypatch):

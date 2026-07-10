@@ -27,6 +27,7 @@ def processor_node(state: ResearchState, config) -> dict:
 
     scorer_prompt = agents_config["processor"]["scorer_prompt"]
     summarizer_prompt = agents_config["processor"]["summarizer_prompt"]
+    synthesizer_prompt = agents_config["processor"].get("synthesizer_prompt", "")
     scorer_llm = llm_module.get_llm(temperature=0.0)
     summarizer_llm = llm_module.get_llm(temperature=0.2)
     settings = get_settings()
@@ -41,7 +42,7 @@ def processor_node(state: ResearchState, config) -> dict:
             )
             continue
 
-        summary = _summarize_paper(summarizer_llm, summarizer_prompt, r)
+        summary = _summarize_paper(summarizer_llm, summarizer_prompt, query, r)
         if summary is None:
             logs.append(
                 f"  Paper '{r.title[:60]}': score={score} but failed to parse summary — skipped."
@@ -62,11 +63,25 @@ def processor_node(state: ResearchState, config) -> dict:
         f"  Produced {len(findings)} findings across {len(filtered)} papers "
         f"(threshold={threshold})."
     )
-    if not findings:
+    synthesized_answer = ""
+    if findings:
+        synthesized_answer = _synthesize_answer(
+            summarizer_llm, synthesizer_prompt, query, findings
+        )
+        logs.append(
+            f"  Generated synthesized answer ({len(synthesized_answer)} chars)."
+        )
+    else:
         logs.append("  [WARN] No papers passed the relevance threshold.")
-    logs.extend(validate_contract({"processed_findings": findings}, ProcessorOutput))
+    logs.extend(
+        validate_contract(
+            {"processed_findings": findings, "synthesized_answer": synthesized_answer},
+            ProcessorOutput,
+        )
+    )
     return {
         "processed_findings": findings,
+        "synthesized_answer": synthesized_answer,
         "logs": logs,
     }
 
@@ -94,14 +109,38 @@ def _parse_score(text: str) -> int:
     return -1
 
 
-def _summarize_paper(llm, prompt: str, paper) -> str | None:
-    context = f"Title: {paper.title}\nAbstract: {paper.snippet[:2000]}"
+def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
+    formatted_prompt = prompt.format(query=query)
+    authors = ", ".join(paper.authors) if paper.authors else "N/A"
+    published = paper.published or "N/A"
+    context = (
+        f"Title: {paper.title}\n"
+        f"Authors: {authors}\n"
+        f"Published: {published}\n"
+        f"Abstract: {paper.snippet[:2000]}"
+    )
     messages = [
-        SystemMessage(content=prompt),
+        SystemMessage(content=formatted_prompt),
         HumanMessage(content=context),
     ]
     response = llm.invoke(messages)
     return _parse_summary(response.content)
+
+
+def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
+    findings_text = "\n\n".join(
+        f"Paper: {f.source}\n"
+        f"Relevance: {f.relevance_score}/3\n"
+        f"Summary: {f.summary}"
+        for f in findings
+    )
+    formatted_prompt = prompt.format(query=query, findings=findings_text)
+    messages = [
+        SystemMessage(content=formatted_prompt),
+        HumanMessage(content="Write the synthesized answer."),
+    ]
+    response = llm.invoke(messages)
+    return response.content.strip()
 
 
 def _parse_summary(text: str) -> str | None:

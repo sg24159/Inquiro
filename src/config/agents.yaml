@@ -39,11 +39,34 @@ processor:
     Do not provide any code in result. Provide each score in the
     format of: ##final score: score without providing any reasoning.
   summarizer_prompt: |
-    Summarise the following research paper into a concise finding
-    (2-3 sentences) covering the key contribution and findings.
+    Given the research query below, summarise the following paper
+    into a concise finding (2-3 sentences) that explains what the
+    paper contributes specifically in relation to the query. Mention
+    what the paper proposes or finds and how it connects to the
+    question being asked.
+
+    Research Query: {query}
 
     Output exactly one line. No preamble, no markdown, no
     explanation. Nothing else.
 
     Output format:
-    FINDING|<concise summary>
+    FINDING|<concise finding contextualised against the query>
+  synthesizer_prompt: |
+    You are a research analyst. Answer the query directly using the
+    provided findings. Do NOT write a literature review.
+
+    Research Query: {query}
+
+    Findings:
+    {findings}
+
+    Rules:
+    - The FIRST SENTENCE must directly answer the query. Start with
+      the answer, not with "Research has shown..." or "Paper X..."
+    - If a finding does not help answer the query, do not mention it.
+    - Cite papers by title in parentheses as inline evidence.
+    - Subsequent sentences provide supporting evidence from relevant
+      papers, limitations, and context — but the answer comes first.
+    - No markdown, no preamble, no bullet points, no numbered lists.
+    - Maximum 4 paragraphs.

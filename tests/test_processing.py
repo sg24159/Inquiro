@@ -148,7 +148,10 @@ def test_processor_node_with_results():
         scorer = MagicMock()
         scorer.invoke.return_value = AIMessage(content="##final score: 3")
         summarizer = MagicMock()
-        summarizer.invoke.return_value = AIMessage(content="FINDING|Machine learning is key")
+        summarizer.invoke.side_effect = [
+            AIMessage(content="FINDING|Machine learning is key"),
+            AIMessage(content="Machine learning enables computers to learn from data."),
+        ]
         mock.side_effect = [scorer, summarizer]
         state = ResearchState(query="test", messages=[], raw_results=results)
         result = processor_node(state, {"configurable": {"thread_id": "t"}})
@@ -156,6 +159,8 @@ def test_processor_node_with_results():
         assert result["processed_findings"][0].summary == "Machine learning is key"
         assert result["processed_findings"][0].relevance_score == 3
         assert result["processed_findings"][0].source_url == "s1"
+        assert result["synthesized_answer"] == "Machine learning enables computers to learn from data."
+        assert any("synthesized" in log for log in result["logs"])
 
 
 def test_parse_score_fractional():
@@ -191,6 +196,37 @@ def test_filter_noise_single_item():
     ]
     filtered = filter_noise(results)
     assert len(filtered) == 1
+
+
+def test_synthesize_answer():
+    """_synthesize_answer returns the LLM response content."""
+    from processing.agent import _synthesize_answer
+
+    llm = MagicMock()
+    llm.invoke.return_value = AIMessage(content="Synthesized answer text.")
+    result = _synthesize_answer(
+        llm, "Prompt {query} {findings}", "test query", []
+    )
+    assert result == "Synthesized answer text."
+
+
+def test_processor_node_synthesis_empty_when_no_findings():
+    """When no papers pass threshold, synthesized_answer should be empty string."""
+    results = [
+        RawResult(
+            source="s1",
+            title="Paper A",
+            snippet="This is a sufficiently long abstract about machine learning that passes the noise filter.",
+        ),
+    ]
+    with patch("shared.llm.get_llm") as mock:
+        scorer = MagicMock()
+        scorer.invoke.return_value = AIMessage(content="##final score: 1")
+        mock.return_value = scorer
+        state = ResearchState(query="test", messages=[], raw_results=results)
+        result = processor_node(state, {"configurable": {"thread_id": "t"}})
+        assert result["processed_findings"] == []
+        assert result["synthesized_answer"] == ""
 
 
 def test_processor_node_llm_failure():
@@ -235,10 +271,14 @@ def test_processor_node_mixed_threshold_results():
             AIMessage(content="##final score: 1"),
         ]
         summarizer = MagicMock()
-        summarizer.invoke.return_value = AIMessage(content="FINDING|Key insight")
+        summarizer.invoke.side_effect = [
+            AIMessage(content="FINDING|Key insight"),
+            AIMessage(content="Synthesized answer."),
+        ]
         mock.side_effect = [scorer, summarizer]
         state = ResearchState(query="test", messages=[], raw_results=results)
         result = processor_node(state, {"configurable": {"thread_id": "t"}})
         assert len(result["processed_findings"]) == 1
         assert result["processed_findings"][0].source == "High Score Paper"
+        assert result["synthesized_answer"] == "Synthesized answer."
         assert any("skipped" in log for log in result["logs"])

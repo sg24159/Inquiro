@@ -31,6 +31,8 @@ def mock_httpx():
     <id>http://arxiv.org/abs/1234.56789</id>
     <title>Test Paper Title</title>
     <summary>This is a sufficiently long test abstract with enough words to pass the noise filter threshold.</summary>
+    <published>2024-03-15</published>
+    <author><name>Jane Doe</name></author>
   </entry>
 </feed>"""
         mock.return_value.raise_for_status = MagicMock()
@@ -53,7 +55,7 @@ def mock_processor_llm():
 
 @pytest.fixture
 def mock_llm_chain():
-    """Mock that returns TASK|, then score, then summary on successive invoke calls."""
+    """Mock for planner→scorer→summarizer→synthesizer on successive invoke calls."""
     with patch("shared.llm.get_llm") as mock:
         llm_instance = MagicMock()
         llm_instance.invoke.side_effect = [
@@ -65,6 +67,7 @@ def mock_llm_chain():
             ),
             AIMessage(content="##final score: 2"),
             AIMessage(content="FINDING|Machine learning is a broad field that enables computers to learn."),
+            AIMessage(content="Machine learning enables computers to learn from data without explicit programming. Key approaches include supervised learning with labeled datasets and unsupervised learning for pattern discovery."),
         ]
         mock.return_value = llm_instance
         yield mock

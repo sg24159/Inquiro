@@ -25,12 +25,14 @@ class ProcessorInput(BaseModel):
 
 class ProcessorOutput(BaseModel):
     processed_findings: list[ProcessedFinding]
+    synthesized_answer: str = ""
 
 
 class WriterInput(BaseModel):
     query: str
     sub_tasks: list[SubTask]
     processed_findings: list[ProcessedFinding]
+    synthesized_answer: str = ""
 
 
 class WriterOutput(BaseModel):

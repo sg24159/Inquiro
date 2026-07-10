@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 
 from retrieval.agent import _deduplicate, _fetch_arxiv, retriever_node
+from retrieval.tools import _format_title_query
 from retrieval.tools import _cache_load, _cache_store
 from coordinator.state import ResearchState
 from shared.models import RawResult, SubTask
@@ -142,6 +143,28 @@ def test_fetch_arxiv_strips_whitespace(mock_cache):
         assert call_kwargs.kwargs["params"]["search_query"] == "Quantum Computing"
 
 
+def test_format_title_query_multi_word():
+    """Multi-word keywords get ti: with quotes."""
+    assert _format_title_query(["Machine Learning", "Deep Learning"]) == \
+        'ti:"machine learning" OR ti:"deep learning"'
+
+
+def test_format_title_query_single_word():
+    """Single-word keywords get ti: without quotes."""
+    assert _format_title_query(["ml", "algorithms"]) == "ti:ml OR ti:algorithms"
+
+
+def test_format_title_query_mixed():
+    """Mixed single/multi-word keywords are handled correctly."""
+    assert _format_title_query(["Neural Networks", "transformers"]) == \
+        'ti:"neural networks" OR ti:transformers'
+
+
+def test_format_title_query_empty():
+    """Empty keyword list returns empty string."""
+    assert _format_title_query([]) == ""
+
+
 def test_cache_load_corrupted_file(tmp_path, monkeypatch):
     """Corrupted cache file should return None (not raise)."""
     monkeypatch.setattr("config.settings.get_settings", lambda: MagicMock(outputs_dir=str(tmp_path)))
@@ -220,7 +243,7 @@ def test_retriever_node_partial_failure():
 
 
 def test_retriever_node_keywords_are_lowercased():
-    """Keywords should be lowercased and joined with OR before querying arXiv."""
+    """Keywords should be lowercased and formatted as title-only arXiv query."""
     from shared.models import SubTask
 
     tasks = [SubTask(description="Task", keywords=["Machine Learning", "Deep Learning"])]
@@ -231,4 +254,4 @@ def test_retriever_node_keywords_are_lowercased():
         retriever_node(state, {"configurable": {"thread_id": "t"}})
         mock_fetch.assert_called_once()
         query_arg = mock_fetch.call_args.args[0]
-        assert query_arg == "machine learning OR deep learning"
+        assert query_arg == 'ti:"machine learning" OR ti:"deep learning"'

@@ -11,6 +11,8 @@ class RawResult(BaseModel):
     title: str = Field(description="Title of the result")
     snippet: str = Field(description="Abstract or excerpt")
     sub_task_idx: int = Field(default=0, description="Index of originating sub-task")
+    authors: list[str] = Field(default=[], description="Author names")
+    published: str = Field(default="", description="Publication date")
 
 
 class ProcessedFinding(BaseModel):

@@ -13,4 +13,5 @@ class ResearchState(MessagesState):
     processed_findings: list[ProcessedFinding] = []
     report: ReportAssets | None = None
     iteration_count: int = 0
+    synthesized_answer: str = ""
     logs: Annotated[list[str], operator.add] = []
