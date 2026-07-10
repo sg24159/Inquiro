@@ -32,7 +32,6 @@ def processor_node(state: ResearchState, config) -> dict:
     summarizer_llm = llm_module.get_llm(temperature=0.2)
     settings = get_settings()
     threshold = settings.relevance_threshold
-    logs.append(f"  LLM model: {scorer_llm.model_name} via {scorer_llm.openai_api_base}")
     findings = []
 
     for r in filtered:
@@ -75,10 +74,19 @@ def processor_node(state: ResearchState, config) -> dict:
         synthesized_answer = _synthesize_answer(
             summarizer_llm, synthesizer_prompt, query, findings
         )
+        metadata = getattr(_synthesize_answer, "_last_metadata", {})
+        actual_model = metadata.get("model_name", summarizer_llm.model_name)
+        resolved_model = llm_module.resolve_model_info(
+            summarizer_llm.openai_api_base, actual_model
+        )
         logs.append(
-            f"  Generated synthesized answer ({len(synthesized_answer)} chars)."
+            f"  Generated synthesized answer ({len(synthesized_answer)} chars) "
+            f"via {resolved_model} ({summarizer_llm.openai_api_base})."
         )
     else:
+        resolved_model = llm_module.resolve_model_info(
+            summarizer_llm.openai_api_base, summarizer_llm.model_name
+        )
         logs.append("  [WARN] No papers passed the relevance threshold.")
     logs.extend(
         validate_contract(
@@ -89,6 +97,7 @@ def processor_node(state: ResearchState, config) -> dict:
     return {
         "processed_findings": findings,
         "synthesized_answer": synthesized_answer,
+        "resolved_model": resolved_model,
         "logs": logs,
     }
 
@@ -149,6 +158,7 @@ def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
         HumanMessage(content="Write the synthesized answer."),
     ]
     response = llm.invoke(messages)
+    _synthesize_answer._last_metadata = response.response_metadata
     return response.content.strip()
 
 

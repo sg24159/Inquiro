@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import httpx
+
 from langchain_openai import ChatOpenAI
 
 from config.settings import get_settings
@@ -11,3 +15,30 @@ def get_llm(model: str | None = None, temperature: float = 0.0):
         temperature=temperature,
         api_key=settings.api_key or "no-key-required",
     )
+
+
+def resolve_model_info(base_url: str, model_alias: str) -> str:
+    try:
+        resp = httpx.get(f"{base_url.rstrip('/')}/models", timeout=2)
+        resp.raise_for_status()
+        for entry in resp.json().get("data", []):
+            if entry.get("id") != model_alias:
+                continue
+            args = entry.get("status", {}).get("args", [])
+            model_path = ""
+            for i, arg in enumerate(args):
+                if arg == "--model" and i + 1 < len(args):
+                    model_path = args[i + 1]
+            if not model_path:
+                return model_alias
+            label = Path(model_path).stem
+            meta = entry.get("meta", {})
+            details = ", ".join(
+                str(meta[k]) for k in ("n_params", "ftype") if meta.get(k)
+            )
+            if details:
+                label = f"{label} ({details})"
+            return label
+    except Exception:
+        pass
+    return str(model_alias)

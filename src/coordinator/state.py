@@ -14,4 +14,5 @@ class ResearchState(MessagesState):
     report: ReportAssets | None = None
     iteration_count: int = 0
     synthesized_answer: str = ""
+    resolved_model: str = ""
     logs: Annotated[list[str], operator.add] = []

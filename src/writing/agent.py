@@ -2,6 +2,7 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 
+from config.settings import get_settings
 from coordinator.state import ResearchState
 from shared.contracts import WriterInput, WriterOutput, validate_contract
 from shared.models import ReportAssets, SubTask
@@ -29,6 +30,7 @@ def writer_node(state: ResearchState, config) -> dict:
         findings=findings,
         synthesized_answer=synthesized_answer,
     )
+    resolved_model = state.get("resolved_model", "") or get_settings().llm_model
     assets = _save_assets(
         title=query,
         md_body=md_body,
@@ -36,6 +38,7 @@ def writer_node(state: ResearchState, config) -> dict:
         query=query,
         sub_tasks=sub_tasks,
         synthesized_answer=synthesized_answer,
+        resolved_model=resolved_model,
         logs=all_logs,
     )
     logs = [f"[Writer] Saved report to {assets.markdown_path}"]
@@ -54,6 +57,7 @@ def _save_assets(
     query: str = "",
     sub_tasks: list[SubTask] | None = None,
     synthesized_answer: str = "",
+    resolved_model: str = "",
     logs: list[str] | None = None,
 ) -> ReportAssets:
     from datetime import datetime
@@ -66,9 +70,11 @@ def _save_assets(
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:50].strip("-_")
     stem = f"{ts}_{safe}"
+    if not resolved_model:
+        resolved_model = settings.llm_model
 
     md_path = out / f"{stem}.md"
-    md_body += f"\n\n---\n*LLM: {settings.llm_model} via {settings.llm_base_url}*"
+    md_body += f"\n\n---\n*LLM: {resolved_model} via {settings.llm_base_url}*"
     md_path.write_text(md_body)
 
     json_path = out / f"{stem}.json"
@@ -77,7 +83,7 @@ def _save_assets(
             {
                 "title": title,
                 "query": query,
-                "llm_model": settings.llm_model,
+                "llm_model": resolved_model,
                 "llm_base_url": settings.llm_base_url,
                 "generated": datetime.now().isoformat(),
                 "sub_tasks": [
