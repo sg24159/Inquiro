@@ -7,6 +7,7 @@ from config.settings import get_settings
 from coordinator.state import ResearchState
 from shared.contracts import WriterInput, WriterOutput, validate_contract
 from shared.models import ReportAssets, SubTask
+from shared.run_logger import log_run
 
 
 def writer_node(state: ResearchState, config) -> dict:
@@ -44,6 +45,29 @@ def writer_node(state: ResearchState, config) -> dict:
         logs=all_logs,
     )
     elapsed = time.time() - _t0
+    pipeline_start = state.get("pipeline_start_time", 0.0)
+    if pipeline_start:
+        total_elapsed = round(time.time() - pipeline_start, 1)
+    else:
+        total_elapsed = round(
+            state.get("planner_stats", {}).get("elapsed_s", 0)
+            + state.get("retriever_stats", {}).get("elapsed_s", 0)
+            + state.get("processor_stats", {}).get("elapsed_s", 0)
+            + elapsed,
+            1,
+        )
+    log_run({
+        "query": query,
+        "pipeline_elapsed_s": total_elapsed,
+        "resolved_model": resolved_model,
+        "sub_task_count": len(sub_tasks),
+        "raw_result_count": len(state.get("raw_results", [])),
+        "finding_count": len(findings),
+        "planner_stats": state.get("planner_stats", {}),
+        "retriever_stats": state.get("retriever_stats", {}),
+        "processor_stats": state.get("processor_stats", {}),
+        "writer_stats": {"elapsed_s": round(elapsed, 1)},
+    })
     logs = [f"[Writer] Saved report to {assets.markdown_path}"]
     logs.append(f"  Completed in {elapsed:.1f}s")
     logs.extend(warnings)
@@ -51,6 +75,9 @@ def writer_node(state: ResearchState, config) -> dict:
     return {
         "report": assets,
         "logs": logs,
+        "writer_stats": {
+            "elapsed_s": round(elapsed, 1),
+        },
     }
 
 

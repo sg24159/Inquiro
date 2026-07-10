@@ -61,11 +61,19 @@ def retriever_node(state: ResearchState, config) -> dict:
         f"[Retriever] Queried {len(sub_tasks)} sub-tasks, "
         f"found {len(deduplicated)} unique results{cache_msg}.",
     )
-    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
+    elapsed = time.time() - _t0
+    logs.append(f"  Completed in {elapsed:.1f}s")
     logs.extend(validate_contract({"raw_results": deduplicated}, RetrieverOutput))
     return {
         "raw_results": deduplicated,
         "logs": logs,
+        "retriever_stats": {
+            "elapsed_s": round(elapsed, 1),
+            "cache_hits": cache_hits,
+            "total_queries": total_queries,
+            "raw_count": len(all_results),
+            "deduped_count": len(deduplicated),
+        },
     }
 
 

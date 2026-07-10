@@ -57,7 +57,7 @@ if prompt := st.chat_input("Enter your research query..."):
         st.info("Running research pipeline…")
         last_time = time.time()
         for event in st.session_state.graph.stream(
-            {"query": prompt, "messages": []}, config, stream_mode="updates"
+            {"query": prompt, "messages": [], "pipeline_start_time": time.time()}, config, stream_mode="updates"
         ):
             now = time.time()
             elapsed = now - last_time

@@ -15,4 +15,9 @@ class ResearchState(MessagesState):
     iteration_count: int = 0
     synthesized_answer: str = ""
     resolved_model: str = ""
+    pipeline_start_time: float = 0.0
+    planner_stats: dict = {}
+    retriever_stats: dict = {}
+    processor_stats: dict = {}
+    writer_stats: dict = {}
     logs: Annotated[list[str], operator.add] = []

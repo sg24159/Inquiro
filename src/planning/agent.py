@@ -28,6 +28,7 @@ def planner_node(state: ResearchState, config) -> dict:
         )),
     ]
     response = llm.invoke(messages)
+    usage = (response.usage_metadata or {}) if hasattr(response, "usage_metadata") else {}
     sub_tasks = _parse_sub_tasks(response.content)
     logs = [f"[Planner] Decomposed into {len(sub_tasks)} sub-tasks."]
     if sub_tasks:
@@ -40,7 +41,8 @@ def planner_node(state: ResearchState, config) -> dict:
     logs.append(
         f"  Raw LLM response:\n{response.content}"
     )
-    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
+    elapsed = time.time() - _t0
+    logs.append(f"  Completed in {elapsed:.1f}s")
     warnings.extend(
         validate_contract({"sub_tasks": sub_tasks}, PlannerOutput)
     )
@@ -49,6 +51,11 @@ def planner_node(state: ResearchState, config) -> dict:
         "sub_tasks": sub_tasks,
         "messages": [response],
         "logs": logs,
+        "planner_stats": {
+            "elapsed_s": round(elapsed, 1),
+            "input_tokens": usage.get("input_tokens", 0) if isinstance(usage, dict) else getattr(usage, "input_tokens", 0),
+            "output_tokens": usage.get("output_tokens", 0) if isinstance(usage, dict) else getattr(usage, "output_tokens", 0),
+        },
     }
 
 

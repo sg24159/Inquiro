@@ -1,4 +1,5 @@
 import argparse
+import time
 import uuid
 
 from rich.console import Console
@@ -25,7 +26,7 @@ def main():
 
     graph = compile_graph()
     config = {"configurable": {"thread_id": args.session_id}}
-    initial_state = {"query": args.query, "messages": []}
+    initial_state = {"query": args.query, "messages": [], "pipeline_start_time": time.time()}
 
     console.print(f"[bold cyan]Inquiro[/bold cyan] — Session: [green]{args.session_id}[/green]\n")
     with console.status("[bold green]Researching...") as status:
@@ -53,6 +54,7 @@ def main():
 
     final_state = graph.get_state(config)
     report = final_state.values.get("report")
+
     if report:
         md = Path(report.markdown_path).read_text() if Path(report.markdown_path).exists() else ""
         if md:

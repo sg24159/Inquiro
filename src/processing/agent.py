@@ -36,9 +36,20 @@ def processor_node(state: ResearchState, config) -> dict:
     settings = get_settings()
     threshold = settings.relevance_threshold
     findings = []
+    score_dist: dict[int, int] = {}
+    scorer_tok_in = 0
+    scorer_tok_out = 0
+    summarizer_tok_in = 0
+    summarizer_tok_out = 0
 
     for r in filtered:
         score = _score_paper(scorer_llm, scorer_prompt, query, r)
+        score_dist[score] = score_dist.get(score, 0) + 1
+        su = getattr(_score_paper, "_last_usage", None) or {}
+        if isinstance(su, dict):
+            scorer_tok_in += su.get("input_tokens", 0)
+            scorer_tok_out += su.get("output_tokens", 0)
+
         if score < threshold:
             logs.append(
                 f"  Paper '{r.title[:60]}': score={score} < threshold={threshold} — skipped."
@@ -51,6 +62,10 @@ def processor_node(state: ResearchState, config) -> dict:
                 f"  Paper '{r.title[:60]}': score={score} but failed to parse summary — skipped."
             )
             continue
+        stu = getattr(_summarize_paper, "_last_usage", None) or {}
+        if isinstance(stu, dict):
+            summarizer_tok_in += stu.get("input_tokens", 0)
+            summarizer_tok_out += stu.get("output_tokens", 0)
 
         findings.append(
             ProcessedFinding(
@@ -73,6 +88,8 @@ def processor_node(state: ResearchState, config) -> dict:
         f"(threshold={threshold})."
     )
     synthesized_answer = ""
+    synthesis_tok_in = 0
+    synthesis_tok_out = 0
     if findings:
         synthesized_answer = _synthesize_answer(
             summarizer_llm, synthesizer_prompt, query, findings
@@ -82,13 +99,16 @@ def processor_node(state: ResearchState, config) -> dict:
         resolved_model = llm_module.resolve_model_info(
             summarizer_llm.openai_api_base, actual_model
         )
-        usage = getattr(_synthesize_answer, "_last_usage", {})
+        su = getattr(_synthesize_answer, "_last_usage", {})
+        if isinstance(su, dict):
+            synthesis_tok_in = su.get("input_tokens", 0)
+            synthesis_tok_out = su.get("output_tokens", 0)
         tokens = ""
-        if usage:
+        if su:
             tokens = (
-                f" | in={usage.get('input_tokens', '?')} "
-                f"out={usage.get('output_tokens', '?')} "
-                f"total={usage.get('total_tokens', '?')}"
+                f" | in={(su or {}).get('input_tokens', '?')} "
+                f"out={(su or {}).get('output_tokens', '?')} "
+                f"total={(su or {}).get('total_tokens', '?')}"
             )
         logs.append(
             f"  Generated synthesized answer ({len(synthesized_answer)} chars)"
@@ -99,7 +119,8 @@ def processor_node(state: ResearchState, config) -> dict:
             summarizer_llm.openai_api_base, summarizer_llm.model_name
         )
         logs.append("  [WARN] No papers passed the relevance threshold.")
-    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
+    elapsed = time.time() - _t0
+    logs.append(f"  Completed in {elapsed:.1f}s")
     logs.extend(
         validate_contract(
             {"processed_findings": findings, "synthesized_answer": synthesized_answer},
@@ -111,6 +132,18 @@ def processor_node(state: ResearchState, config) -> dict:
         "synthesized_answer": synthesized_answer,
         "resolved_model": resolved_model,
         "logs": logs,
+        "processor_stats": {
+            "elapsed_s": round(elapsed, 1),
+            "papers_in": len(filtered),
+            "findings_out": len(findings),
+            "score_distribution": {str(k): v for k, v in sorted(score_dist.items())},
+            "scorer_tokens_in": scorer_tok_in,
+            "scorer_tokens_out": scorer_tok_out,
+            "summarizer_tokens_in": summarizer_tok_in,
+            "summarizer_tokens_out": summarizer_tok_out,
+            "synthesis_tokens_in": synthesis_tok_in,
+            "synthesis_tokens_out": synthesis_tok_out,
+        },
     }
 
 
@@ -121,6 +154,9 @@ def _score_paper(llm, prompt: str, query: str, paper) -> int:
         HumanMessage(content=f"Query: {query}\nPassage: {context}"),
     ]
     response = llm.invoke(messages)
+    _score_paper._last_usage = (
+        response.usage_metadata if hasattr(response, "usage_metadata") else None
+    )
     return _parse_score(response.content)
 
 
@@ -152,6 +188,9 @@ def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
         HumanMessage(content=context),
     ]
     response = llm.invoke(messages)
+    _summarize_paper._last_usage = (
+        response.usage_metadata if hasattr(response, "usage_metadata") else None
+    )
     return _parse_summary(response.content)
 
 
