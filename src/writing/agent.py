@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
@@ -9,6 +10,7 @@ from shared.models import ReportAssets, SubTask
 
 
 def writer_node(state: ResearchState, config) -> dict:
+    _t0 = time.time()
     query = state.get("query", "Research Report")
     sub_tasks = state.get("sub_tasks", [])
     findings = state.get("processed_findings", [])
@@ -41,7 +43,9 @@ def writer_node(state: ResearchState, config) -> dict:
         resolved_model=resolved_model,
         logs=all_logs,
     )
+    elapsed = time.time() - _t0
     logs = [f"[Writer] Saved report to {assets.markdown_path}"]
+    logs.append(f"  Completed in {elapsed:.1f}s")
     logs.extend(warnings)
     logs.extend(validate_contract({"report": assets}, WriterOutput))
     return {

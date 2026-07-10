@@ -1,3 +1,5 @@
+import time
+
 import httpx
 
 from config.settings import get_settings
@@ -10,6 +12,7 @@ ARXIV_URL = "https://export.arxiv.org/api/query"
 
 
 def retriever_node(state: ResearchState, config) -> dict:
+    _t0 = time.time()
     settings = get_settings()
     sub_tasks = state.get("sub_tasks", [])
     warnings = validate_contract({"sub_tasks": sub_tasks}, RetrieverInput)
@@ -17,6 +20,7 @@ def retriever_node(state: ResearchState, config) -> dict:
 
     if not sub_tasks:
         logs.append("[Retriever] [WARN] No sub-tasks to query — returning empty.")
+        logs.append(f"  Completed in {time.time() - _t0:.1f}s")
         logs.extend(validate_contract({"raw_results": []}, RetrieverOutput))
         return {"raw_results": [], "logs": logs}
 
@@ -57,6 +61,7 @@ def retriever_node(state: ResearchState, config) -> dict:
         f"[Retriever] Queried {len(sub_tasks)} sub-tasks, "
         f"found {len(deduplicated)} unique results{cache_msg}.",
     )
+    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
     logs.extend(validate_contract({"raw_results": deduplicated}, RetrieverOutput))
     return {
         "raw_results": deduplicated,

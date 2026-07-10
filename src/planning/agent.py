@@ -1,3 +1,5 @@
+import time
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config import agents_config
@@ -9,6 +11,7 @@ from shared.utils import strip_line_noise
 
 
 def planner_node(state: ResearchState, config) -> dict:
+    _t0 = time.time()
     warnings = validate_contract({"query": state.get("query", "")}, PlannerInput)
     llm = llm_module.get_llm(temperature=0.2)
     system_prompt = agents_config["planner"]["system_prompt"]
@@ -37,6 +40,7 @@ def planner_node(state: ResearchState, config) -> dict:
     logs.append(
         f"  Raw LLM response:\n{response.content}"
     )
+    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
     warnings.extend(
         validate_contract({"sub_tasks": sub_tasks}, PlannerOutput)
     )

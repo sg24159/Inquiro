@@ -1,3 +1,5 @@
+import time
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config import agents_config
@@ -11,6 +13,7 @@ from shared.utils import strip_line_noise
 
 
 def processor_node(state: ResearchState, config) -> dict:
+    _t0 = time.time()
     raw = state.get("raw_results", [])
     query = state.get("query", "")
     warnings = validate_contract({"raw_results": raw}, ProcessorInput)
@@ -79,15 +82,24 @@ def processor_node(state: ResearchState, config) -> dict:
         resolved_model = llm_module.resolve_model_info(
             summarizer_llm.openai_api_base, actual_model
         )
+        usage = getattr(_synthesize_answer, "_last_usage", {})
+        tokens = ""
+        if usage:
+            tokens = (
+                f" | in={usage.get('input_tokens', '?')} "
+                f"out={usage.get('output_tokens', '?')} "
+                f"total={usage.get('total_tokens', '?')}"
+            )
         logs.append(
-            f"  Generated synthesized answer ({len(synthesized_answer)} chars) "
-            f"via {resolved_model} ({summarizer_llm.openai_api_base})."
+            f"  Generated synthesized answer ({len(synthesized_answer)} chars)"
+            f"{tokens} via {resolved_model} ({summarizer_llm.openai_api_base})."
         )
     else:
         resolved_model = llm_module.resolve_model_info(
             summarizer_llm.openai_api_base, summarizer_llm.model_name
         )
         logs.append("  [WARN] No papers passed the relevance threshold.")
+    logs.append(f"  Completed in {time.time() - _t0:.1f}s")
     logs.extend(
         validate_contract(
             {"processed_findings": findings, "synthesized_answer": synthesized_answer},
@@ -159,6 +171,7 @@ def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
     ]
     response = llm.invoke(messages)
     _synthesize_answer._last_metadata = response.response_metadata
+    _synthesize_answer._last_usage = response.usage_metadata
     return response.content.strip()
 
 
