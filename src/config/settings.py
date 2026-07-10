@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     relevance_threshold: int = 2
     arxiv_max_results: int = 15
     outputs_dir: str = "outputs"
+    chat_template_kwargs: str = ""
 
 
 _settings: Settings | None = None
