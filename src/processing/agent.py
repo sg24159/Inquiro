@@ -6,7 +6,7 @@ from coordinator.state import ResearchState
 from processing.tools import filter_noise
 from shared import llm as llm_module
 from shared.contracts import ProcessorInput, ProcessorOutput, validate_contract
-from shared.models import ProcessedFinding
+from shared.models import ProcessedFinding, _format_citation_author
 from shared.utils import strip_line_noise
 
 
@@ -32,6 +32,7 @@ def processor_node(state: ResearchState, config) -> dict:
     summarizer_llm = llm_module.get_llm(temperature=0.2)
     settings = get_settings()
     threshold = settings.relevance_threshold
+    logs.append(f"  LLM model: {scorer_llm.model_name} via {scorer_llm.openai_api_base}")
     findings = []
 
     for r in filtered:
@@ -56,6 +57,7 @@ def processor_node(state: ResearchState, config) -> dict:
                 source=r.title,
                 source_url=r.source,
                 year=r.published[:4] if r.published else "",
+                citation_author=_format_citation_author(r.authors),
             )
         )
         logs.append(f"  Paper '{r.title[:60]}': score={score} — included.")
@@ -135,6 +137,7 @@ def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
 def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
     findings_text = "\n\n".join(
         f"Paper: {f.source}\n"
+        f"Author: {f.citation_author}\n"
         f"Year: {f.year}\n"
         f"Relevance: {f.relevance_score}/3\n"
         f"Summary: {f.summary}"

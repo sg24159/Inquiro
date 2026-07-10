@@ -15,6 +15,14 @@ class RawResult(BaseModel):
     published: str = Field(default="", description="Publication date")
 
 
+def _format_citation_author(authors: list[str]) -> str:
+    if not authors:
+        return "Unknown"
+    if len(authors) == 1:
+        return authors[0]
+    return f"{authors[0]} et al."
+
+
 class ProcessedFinding(BaseModel):
     summary: str = Field(description="Concise summary")
     relevance_score: int = Field(description="Relevance 0-3", ge=0, le=3)
@@ -22,6 +30,7 @@ class ProcessedFinding(BaseModel):
     source_url: str = Field(default="", description="Clickable link to source")
     title: str = Field(default="", description="Original title")
     year: str = Field(default="", description="Publication year")
+    citation_author: str = Field(default="", description="First author formatted for Harvard citation")
 
 
 class ReportAssets(BaseModel):

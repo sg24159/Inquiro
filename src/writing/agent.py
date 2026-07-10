@@ -60,13 +60,15 @@ def _save_assets(
     import json
 
     from config.settings import get_settings
-    out = Path(get_settings().outputs_dir)
+    settings = get_settings()
+    out = Path(settings.outputs_dir)
     out.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in title)[:50].strip("-_")
     stem = f"{ts}_{safe}"
 
     md_path = out / f"{stem}.md"
+    md_body += f"\n\n---\n*LLM: {settings.llm_model} via {settings.llm_base_url}*"
     md_path.write_text(md_body)
 
     json_path = out / f"{stem}.json"
@@ -75,6 +77,8 @@ def _save_assets(
             {
                 "title": title,
                 "query": query,
+                "llm_model": settings.llm_model,
+                "llm_base_url": settings.llm_base_url,
                 "generated": datetime.now().isoformat(),
                 "sub_tasks": [
                     {"description": st.description, "keywords": st.keywords}
@@ -86,6 +90,9 @@ def _save_assets(
                         "relevance_score": f.relevance_score,
                         "source": f.source,
                         "source_url": f.source_url,
+                        "title": f.title,
+                        "year": f.year,
+                        "citation_author": f.citation_author,
                     }
                     for f in findings
                 ],

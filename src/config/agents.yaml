@@ -67,7 +67,8 @@ processor:
     - Findings are sorted by year (most recent first). More recent
       work is generally more definitive.
     - If a finding does not help answer the query, do not mention it.
-    - Cite papers by title in parentheses as inline evidence.
+    - Cite papers using Harvard author-year style, e.g. (Smith et al.,
+      2023). Never use full paper titles as inline citations.
     - Subsequent sentences provide supporting evidence from relevant
       papers, limitations, and context — but the answer comes first.
     - No markdown, no preamble, no bullet points, no numbered lists.
