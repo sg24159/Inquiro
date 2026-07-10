@@ -27,18 +27,29 @@ def retriever_node(state: ResearchState, config) -> dict:
         keywords = task.keywords
         if not keywords:
             continue
-        query = _format_title_query(keywords)
-        results, error, hit = _fetch_arxiv(query, max_results=settings.arxiv_max_results)
-        total_queries += 1
-        if hit:
-            cache_hits += 1
-        if error:
-            logs.append(f"  [WARN] {error}")
-        kw_log = f"  sub_task[{idx}]: {len(results)} results"
+        title_query = _format_title_query(keywords)
+        abstract_query = " OR ".join(kw.strip().lower() for kw in keywords)
+        title_results, title_error, title_hit = _fetch_arxiv(
+            title_query, max_results=settings.arxiv_max_results
+        )
+        abstract_results, abstract_error, abstract_hit = _fetch_arxiv(
+            abstract_query, max_results=settings.arxiv_max_results
+        )
+        total_queries += 2
+        cache_hits += sum([title_hit, abstract_hit])
+        if title_error:
+            logs.append(f"  [WARN] {title_error}")
+        if abstract_error:
+            logs.append(f"  [WARN] {abstract_error}")
+        merged = title_results + abstract_results
+        kw_log = (
+            f"  sub_task[{idx}]: {len(merged)} results"
+            f" ({len(title_results)} title + {len(abstract_results)} abstract)"
+        )
         logs.append(kw_log)
-        for r in results:
+        for r in merged:
             r.sub_task_idx = idx
-        all_results.extend(results)
+        all_results.extend(merged)
     deduplicated = _deduplicate(all_results)
     cache_msg = f", {cache_hits}/{total_queries} from cache" if total_queries else ""
     logs.insert(

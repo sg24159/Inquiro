@@ -211,6 +211,7 @@ def test_retriever_node_with_sub_tasks():
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
         mock_fetch.side_effect = [
             ([paper_a], None, False),
+            ([paper_a], None, False),
             ([paper_b], None, False),
             ([paper_b], None, False),
         ]
@@ -234,6 +235,8 @@ def test_retriever_node_partial_failure():
     with patch("retrieval.agent._fetch_arxiv") as mock_fetch:
         mock_fetch.side_effect = [
             ([paper], None, False),
+            ([paper], None, False),
+            ([], "HTTP error querying arXiv for 'broken': timeout", False),
             ([], "HTTP error querying arXiv for 'broken': timeout", False),
         ]
         state = ResearchState(query="test", messages=[], sub_tasks=tasks)
@@ -243,7 +246,7 @@ def test_retriever_node_partial_failure():
 
 
 def test_retriever_node_keywords_are_lowercased():
-    """Keywords should be lowercased and formatted as title-only arXiv query."""
+    """Title and abstract queries are built and passed to _fetch_arxiv."""
     from shared.models import SubTask
 
     tasks = [SubTask(description="Task", keywords=["Machine Learning", "Deep Learning"])]
@@ -252,6 +255,8 @@ def test_retriever_node_keywords_are_lowercased():
         mock_fetch.return_value = ([], None, False)
         state = ResearchState(query="test", messages=[], sub_tasks=tasks)
         retriever_node(state, {"configurable": {"thread_id": "t"}})
-        mock_fetch.assert_called_once()
-        query_arg = mock_fetch.call_args.args[0]
-        assert query_arg == 'ti:"machine learning" OR ti:"deep learning"'
+        assert mock_fetch.call_count == 2
+        title_call = mock_fetch.call_args_list[0]
+        abstract_call = mock_fetch.call_args_list[1]
+        assert title_call.args[0] == 'ti:"machine learning" OR ti:"deep learning"'
+        assert abstract_call.args[0] == "machine learning OR deep learning"
