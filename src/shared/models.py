@@ -13,6 +13,7 @@ class RawResult(BaseModel):
     sub_task_idx: int = Field(default=0, description="Index of originating sub-task")
     authors: list[str] = Field(default=[], description="Author names")
     published: str = Field(default="", description="Publication date")
+    source_type: str = Field(default="arxiv", description="Source of the result (arxiv, web)")
 
 
 def _format_citation_author(authors: list[str]) -> str:

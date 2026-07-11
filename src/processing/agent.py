@@ -77,14 +77,14 @@ def processor_node(state: ResearchState, config) -> dict:
                 citation_author=_format_citation_author(r.authors),
             )
         )
-        logs.append(f"  Paper '{r.title[:60]}': score={score} — included.")
+        logs.append(f"  '{r.title[:60]}': score={score} — included.")
 
     findings.sort(
         key=lambda f: (f.year or "0", f.relevance_score),
         reverse=True,
     )
     logs.append(
-        f"  Produced {len(findings)} findings across {len(filtered)} papers "
+        f"  Produced {len(findings)} findings across {len(filtered)} sources "
         f"(threshold={threshold})."
     )
     synthesized_answer = ""
@@ -118,7 +118,7 @@ def processor_node(state: ResearchState, config) -> dict:
         resolved_model = llm_module.resolve_model_info(
             summarizer_llm.openai_api_base, summarizer_llm.model_name
         )
-        logs.append("  [WARN] No papers passed the relevance threshold.")
+        logs.append("  [WARN] No sources passed the relevance threshold.")
     elapsed = time.time() - _t0
     logs.append(f"  Completed in {elapsed:.1f}s")
     logs.extend(
@@ -196,9 +196,10 @@ def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
 
 def _synthesize_answer(llm, prompt: str, query: str, findings: list) -> str:
     findings_text = "\n\n".join(
-        f"Paper: {f.source}\n"
+        f"Source: {f.source}\n"
         f"Author: {f.citation_author}\n"
         f"Year: {f.year}\n"
+        f"URL: {f.source_url}\n"
         f"Relevance: {f.relevance_score}/3\n"
         f"Summary: {f.summary}"
         for f in findings

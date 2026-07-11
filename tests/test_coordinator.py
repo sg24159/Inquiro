@@ -10,7 +10,10 @@ def test_graph_builds():
     assert "writer" in nodes
 
 
-def test_graph_execution(mock_llm, mock_httpx, tmp_path, monkeypatch):
+from unittest.mock import patch
+
+@patch("retrieval.agent._fetch_ddg", return_value=([], None, False))
+def test_graph_execution(mock_ddg, mock_llm, mock_httpx, tmp_path, monkeypatch):
     """End-to-end: all nodes run with mocks."""
     monkeypatch.chdir(tmp_path)
     from coordinator.graph import build_research_graph
@@ -32,7 +35,8 @@ def test_graph_execution(mock_llm, mock_httpx, tmp_path, monkeypatch):
     assert isinstance(final.values.get("logs"), list)
 
 
-def test_graph_execution_full_chain(mock_llm_chain, mock_httpx, tmp_path, monkeypatch):
+@patch("retrieval.agent._fetch_ddg", return_value=([], None, False))
+def test_graph_execution_full_chain(mock_ddg, mock_llm_chain, mock_httpx, tmp_path, monkeypatch):
     """E2E: planner produces TASK, processor produces FINDING, report has findings."""
     monkeypatch.chdir(tmp_path)
     from coordinator.graph import build_research_graph

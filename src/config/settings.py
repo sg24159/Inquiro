@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     arxiv_max_results: int = 15
     outputs_dir: str = "outputs"
     chat_template_kwargs: str = ""
+    enable_web_search: bool = True
+    ddg_max_results: int = 5
 
 
 _settings: Settings | None = None

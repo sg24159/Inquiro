@@ -168,20 +168,24 @@ def test_format_title_query_empty():
 def test_cache_load_corrupted_file(tmp_path, monkeypatch):
     """Corrupted cache file should return None (not raise)."""
     monkeypatch.setattr("config.settings.get_settings", lambda: MagicMock(outputs_dir=str(tmp_path)))
-    cache_dir = tmp_path / "arxiv_cache"
-    cache_dir.mkdir()
+    from retrieval.tools import _arxiv_cache_dir
+    cache_dir = _arxiv_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
     key_file = cache_dir / "deadbeef"
     key_file.write_text("not valid json {{{")
-    result = _cache_load("any query", 3)
+    result = _cache_load(cache_dir, "any query", 3)
     assert result is None
 
 
 def test_cache_store_and_load_roundtrip(tmp_path, monkeypatch):
     """Stored cache should load back correctly."""
     monkeypatch.setattr("config.settings.get_settings", lambda: MagicMock(outputs_dir=str(tmp_path)))
+    from retrieval.tools import _arxiv_cache_dir
+    cache_dir = _arxiv_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
     results = [RawResult(source="s", title="t", snippet="snip")]
-    _cache_store("test query", 3, results, None)
-    loaded = _cache_load("test query", 3)
+    _cache_store(cache_dir, "test query", 3, results, None)
+    loaded = _cache_load(cache_dir, "test query", 3)
     assert loaded is not None
     loaded_results, error = loaded
     assert len(loaded_results) == 1
@@ -199,7 +203,8 @@ def test_retriever_node_empty_sub_tasks():
         assert any("[WARN]" in log for log in result["logs"])
 
 
-def test_retriever_node_with_sub_tasks():
+@patch("retrieval.agent._fetch_ddg", return_value=([], None, False))
+def test_retriever_node_with_sub_tasks(mock_ddg):
     """Valid sub-tasks → sub_task_idx assigned, overlapping results deduped."""
     tasks = [
         SubTask(description="Task A", keywords=["ml", "deep learning"]),
@@ -224,7 +229,8 @@ def test_retriever_node_with_sub_tasks():
         assert "Paper B" in titles
 
 
-def test_retriever_node_partial_failure():
+@patch("retrieval.agent._fetch_ddg", return_value=([], None, False))
+def test_retriever_node_partial_failure(mock_ddg):
     """Some sub-tasks fail, others succeed → partial results with warning."""
     tasks = [
         SubTask(description="Task A", keywords=["ml", "deep"]),
@@ -245,7 +251,8 @@ def test_retriever_node_partial_failure():
         assert any("[WARN]" in log for log in result["logs"])
 
 
-def test_retriever_node_keywords_are_lowercased():
+@patch("retrieval.agent._fetch_ddg", return_value=([], None, False))
+def test_retriever_node_keywords_are_lowercased(mock_ddg):
     """Title and abstract queries are built and passed to _fetch_arxiv."""
     from shared.models import SubTask
 

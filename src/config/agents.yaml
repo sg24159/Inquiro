@@ -39,10 +39,10 @@ processor:
     Do not provide any code in result. Provide each score in the
     format of: ##final score: score without providing any reasoning.
   summarizer_prompt: |
-    Given the research query below, summarise the following paper
+    Given the research query below, summarise the following source
     into a concise finding (2-3 sentences) that explains what the
-    paper contributes specifically in relation to the query. Mention
-    what the paper proposes or finds and how it connects to the
+    source contributes specifically in relation to the query. Mention
+    what the source describes or concludes and how it connects to the
     question being asked.
 
     Research Query: {query}
@@ -67,9 +67,13 @@ processor:
     - Findings are sorted by year (most recent first). More recent
       work is generally more definitive.
     - If a finding does not help answer the query, do not mention it.
-    - Cite papers using Harvard author-year style, e.g. (Smith et al.,
-      2023). Never use full paper titles as inline citations.
+    - For academic sources (arXiv), cite using Harvard author-year
+      style, e.g. (Smith et al., 2023). Never use full paper titles
+      as inline citations.
+    - For web sources that lack author and year, cite the source
+      domain name like [example.com]. Do not fabricate authors or
+      years for web sources.
     - Subsequent sentences provide supporting evidence from relevant
-      papers, limitations, and context — but the answer comes first.
+      sources, limitations, and context — but the answer comes first.
     - No markdown, no preamble, no bullet points, no numbered lists.
     - Maximum 4 paragraphs.

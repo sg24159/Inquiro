@@ -20,7 +20,7 @@
 
 **{{ f.summary }}**
 
-*Source: {% if f.source_url %}[{{ f.source }}]({{ f.source_url }}){% else %}{{ f.source }}{% endif %}*
+*Source: {% if f.source_url %}[{{ f.source }}]({{ f.source_url }}){% else %}{{ f.source }}{% endif %}{% if f.citation_author and f.year and f.citation_author != "Unknown" and f.year != "" %} — {{ f.citation_author }} ({{ f.year }}){% endif %}*
 
 {% endfor %}
 

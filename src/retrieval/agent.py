@@ -4,7 +4,7 @@ import httpx
 
 from config.settings import get_settings
 from coordinator.state import ResearchState
-from retrieval.tools import _cache_load, _cache_store, _format_title_query
+from retrieval.tools import _arxiv_cache_dir, _cache_load, _cache_store, _fetch_ddg, _format_title_query
 from shared.contracts import RetrieverInput, RetrieverOutput, validate_contract
 from shared.models import RawResult
 
@@ -47,13 +47,30 @@ def retriever_node(state: ResearchState, config) -> dict:
             logs.append(f"  [WARN] {abstract_error}")
         merged = title_results + abstract_results
         kw_log = (
-            f"  sub_task[{idx}]: {len(merged)} results"
+            f"  sub_task[{idx}]: {len(merged)} arXiv results"
             f" ({len(title_results)} title + {len(abstract_results)} abstract)"
         )
+
         logs.append(kw_log)
         for r in merged:
             r.sub_task_idx = idx
         all_results.extend(merged)
+
+    if settings.enable_web_search:
+        original_query = (state.get("query") or "").strip()
+        if original_query:
+            orig_results, orig_error, orig_hit = _fetch_ddg(
+                original_query, max_results=settings.ddg_max_results
+            )
+            total_queries += 1
+            cache_hits += int(orig_hit)
+            if orig_error:
+                logs.append(f"  [WARN] {orig_error}")
+            logs.append(f"  original-query: {len(orig_results)} web results")
+            for r in orig_results:
+                r.sub_task_idx = -1
+            all_results.extend(orig_results)
+
     deduplicated = _deduplicate(all_results)
     cache_msg = f", {cache_hits}/{total_queries} from cache" if total_queries else ""
     logs.insert(
@@ -78,7 +95,8 @@ def retriever_node(state: ResearchState, config) -> dict:
 
 
 def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str | None, bool]:
-    cached = _cache_load(query, max_results)
+    cache_dir = _arxiv_cache_dir()
+    cached = _cache_load(cache_dir, query, max_results)
     if cached is not None:
         return cached[0], cached[1], True
 
@@ -115,7 +133,7 @@ def _fetch_arxiv(query: str, max_results: int = 3) -> tuple[list[RawResult], str
                     published=published,
                 )
             )
-        _cache_store(query, max_results, results, error)
+        _cache_store(cache_dir, query, max_results, results, error)
     except httpx.HTTPError as e:
         error = f"HTTP error querying arXiv for '{query}': {e}"
     except ET.ParseError as e:
