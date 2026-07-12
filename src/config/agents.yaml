@@ -15,6 +15,8 @@ planner:
     TASK|description|keyword1, keyword2, keyword3
 
 processor:
+  # Scoring prompt adapted from:
+  # Upadhyay, S. et al. (2025) “A Large-Scale Study of Relevance Assessments with Large Language Models Using UMBRELA,” Proceedings of the 2025 International ACM SIGIR Conference on Innovative Concepts and Theories in Information Retrieval (ICTIR). ICTIR ’25: International ACM SIGIR Conference on Innovative Concepts and Theories in Information Retrieval, Padua Italy: ACM, pp. 358–368. Available at: https://doi.org/10.1145/3731120.3744605.
   scorer_prompt: |
     Given a query and a passage, you must provide a score on an integer
     scale of 0 to 3 with the following meaning:
