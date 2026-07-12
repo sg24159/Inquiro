@@ -1,5 +1,4 @@
 import time
-import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -9,8 +8,6 @@ from coordinator.graph import compile_graph
 st.set_page_config(page_title="Inquiro", page_icon=":material/search:", layout="wide")
 st.title("Inquiro — Multi-Agent Research Assistant")
 
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
 if "graph" not in st.session_state:
     st.session_state.graph = compile_graph()
 if "messages" not in st.session_state:
@@ -19,14 +16,6 @@ if "report" not in st.session_state:
     st.session_state.report = None
 
 with st.sidebar:
-    st.subheader("Session")
-    st.code(st.session_state.session_id, wrap_lines=True)
-    if st.button("New Session"):
-        st.session_state.session_id = str(uuid.uuid4())
-        st.session_state.messages = []
-        st.session_state.report = None
-        st.rerun()
-
     if st.session_state.report:
         st.subheader("Outputs")
         st.markdown(f"📄 [{Path(st.session_state.report.markdown_path).name}]({st.session_state.report.markdown_path})")
@@ -53,7 +42,7 @@ if prompt := st.chat_input("Enter your research query..."):
     with st.chat_message("assistant"):
         report_placeholder = st.empty()
         log_buffer: list[tuple[str, float, str]] = []
-        config = {"configurable": {"thread_id": st.session_state.session_id}}
+        config = {"configurable": {"thread_id": "default"}}
         st.info("Running research pipeline…")
         last_time = time.time()
         for event in st.session_state.graph.stream(
