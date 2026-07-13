@@ -27,7 +27,7 @@ This file defines conventions and expectations for AI coding agents working on t
 - LLM-backed agents (planner, processor): mock `shared.llm.get_llm`.
 - Non-LLM agents (retriever): mock `httpx.get`.
 - Functional tests that exercise the full compiled graph should use mocked LLM + httpx to stay fast and hermetic.
-- Log test results and any remediations in `docs/TEST_LOG.md`.
+- Log test results and any remediations in `dev_docs/TEST_LOG.md`.
 
 ## Commits
 

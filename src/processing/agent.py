@@ -174,6 +174,11 @@ def _parse_score(text: str) -> int:
 
 
 def _summarize_paper(llm, prompt: str, query: str, paper) -> str | None:
+    """
+    Create a summary of the provided paper.
+    Only the first 2000 characters of the abstract are considered to
+    maintain performance with locally hosted LLMs.
+    """
     formatted_prompt = prompt.format(query=query)
     authors = ", ".join(paper.authors) if paper.authors else "N/A"
     published = paper.published or "N/A"
