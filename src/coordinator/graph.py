@@ -1,4 +1,5 @@
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.constants import END
 from langgraph.graph import StateGraph
 
@@ -26,8 +27,19 @@ def build_research_graph() -> StateGraph:
     return builder
 
 
+def _make_serde():
+    return JsonPlusSerializer(
+        allowed_msgpack_modules=[
+            ("shared.models", "SubTask"),
+            ("shared.models", "RawResult"),
+            ("shared.models", "ProcessedFinding"),
+            ("shared.models", "ReportAssets"),
+        ]
+    )
+
+
 def compile_graph(checkpointer=None):
     builder = build_research_graph()
     if checkpointer is None:
-        checkpointer = MemorySaver()
+        checkpointer = MemorySaver(serde=_make_serde())
     return builder.compile(checkpointer=checkpointer)

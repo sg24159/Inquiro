@@ -15,9 +15,7 @@ def get_llm(model: str | None = None, temperature: float = 0.0):
         try:
             parsed = json.loads(settings.chat_template_kwargs)
             if isinstance(parsed, dict) and parsed:
-                kwargs["model_kwargs"] = {
-                    "extra_body": {"chat_template_kwargs": parsed}
-                }
+                kwargs["extra_body"] = {"chat_template_kwargs": parsed}
         except json.JSONDecodeError:
             pass
     return ChatOpenAI(
