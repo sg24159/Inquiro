@@ -1,9 +1,8 @@
 import argparse
 import time
-import uuid
+from pathlib import Path
 
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.table import Table
 
 from coordinator.graph import compile_graph
@@ -16,54 +15,62 @@ def main():
         description="Inquiro — Multi-agent research assistant"
     )
     parser.add_argument("query", type=str, help="Research query")
-    parser.add_argument(
-        "--session-id",
-        type=str,
-        default=str(uuid.uuid4()),
-        help="Session ID (used in output filenames)",
-    )
     args = parser.parse_args()
 
     graph = compile_graph()
-    config = {"configurable": {"thread_id": args.session_id}}
+    config = {"configurable": {"thread_id": "default"}}
     initial_state = {"query": args.query, "messages": [], "pipeline_start_time": time.time()}
 
-    console.print(f"[bold cyan]Inquiro[/bold cyan] — Session: [green]{args.session_id}[/green]\n")
-    with console.status("[bold green]Researching...") as status:
-        for event in graph.stream(initial_state, config, stream_mode="updates"):
-            for node, update in event.items():
-                logs = update.get("logs", [])
-                for log in logs:
+    synthesized_answer = ""
+    report_path = ""
+    for event in graph.stream(initial_state, config, stream_mode="updates"):
+        for node, update in event.items():
+            logs = update.get("logs", [])
+            if node == "planner" and "sub_tasks" in update:
+                if logs:
+                    console.print(logs[0])
+                tbl = Table("Sub-task", "Keywords")
+                for st in update["sub_tasks"]:
+                    tbl.add_row(st.description, ", ".join(st.keywords))
+                console.print(tbl)
+            if node == "retriever" and logs:
+                console.print(logs[0])
+                for log in logs[1:]:
+                    if log.startswith("    [WARN]"):
+                        continue
                     console.print(f"  {log}")
-                if "sub_tasks" in update:
-                    tbl = Table("Sub-task", "Keywords")
-                    for st in update["sub_tasks"]:
-                        tbl.add_row(st.description[:60], ", ".join(st.keywords))
-                    console.print(tbl)
-                if "processed_findings" in update:
-                    tbl = Table("Summary", "Score", "Source")
-                    for pf in sorted(
+            if node == "processor" and "processed_findings" in update:
+                if logs:
+                    console.print(logs[0])
+                if update["processed_findings"]:
+                    findings = sorted(
                         update["processed_findings"], key=lambda x: x.relevance_score, reverse=True
-                    ):
-                        tbl.add_row(pf.summary[:50], str(pf.relevance_score), pf.source[:40])
-                    console.print(tbl)
-                if "report" in update and update["report"]:
-                    r = update["report"]
-                    console.print(f"\n[bold green]Report:[/bold green] {r.markdown_path}")
-                    console.print(f"[bold green]Data:[/bold green]     {r.json_path}")
+                    )
+                    total = len(findings)
+                    cap = min(total, 10)
+                    for pf in findings[:cap]:
+                        cite = ""
+                        if pf.citation_author and pf.year:
+                            cite = f" — {pf.citation_author} ({pf.year})"
+                        elif pf.year:
+                            cite = f" — ({pf.year})"
+                        console.print(
+                            f"  ● {pf.source}{cite} — score {pf.relevance_score}"
+                        )
+                    if cap < total:
+                        console.print(
+                            f"  [dim](showing first {cap} of {total})[/dim]"
+                        )
+            if "synthesized_answer" in update and update["synthesized_answer"]:
+                synthesized_answer = update["synthesized_answer"]
+            if "report" in update and update["report"]:
+                report_path = update["report"].markdown_path
 
-    final_state = graph.get_state(config)
-    report = final_state.values.get("report")
-
-    if report:
-        md = Path(report.markdown_path).read_text() if Path(report.markdown_path).exists() else ""
-        if md:
-            console.print("\n[bold underline]Report Preview[/bold underline]\n")
-            console.print(Markdown(md[:2000]))
-    else:
-        console.print("[yellow]No report was generated.[/yellow]")
+    if synthesized_answer:
+        console.print(f"\n[bold]Final Answer[/bold]\n{synthesized_answer}")
+    if report_path:
+        console.print(f"[bold green]Report:[/bold green] {report_path}")
 
 
 if __name__ == "__main__":
-    from pathlib import Path
     main()
