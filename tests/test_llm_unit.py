@@ -7,6 +7,7 @@ from config.settings import get_settings
 @patch("shared.llm.get_settings")
 def test_get_llm_passes_settings(mock_get_settings, mock_chat):
     settings = get_settings()
+    settings.chat_template_kwargs = ""
     mock_get_settings.return_value = settings
     mock_chat.return_value = MagicMock()
 
@@ -25,6 +26,7 @@ def test_get_llm_passes_settings(mock_get_settings, mock_chat):
 @patch("shared.llm.get_settings")
 def test_get_llm_custom_model_and_temperature(mock_get_settings, mock_chat):
     settings = get_settings()
+    settings.chat_template_kwargs = ""
     mock_get_settings.return_value = settings
     mock_chat.return_value = MagicMock()
 
