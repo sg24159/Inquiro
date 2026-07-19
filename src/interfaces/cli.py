@@ -61,6 +61,10 @@ def main():
                         console.print(
                             f"  [dim](showing first {cap} of {total})[/dim]"
                         )
+                else:
+                    console.print(
+                        "  No sources met the set threshold for inclusion in the final answer."
+                    )
             if "synthesized_answer" in update and update["synthesized_answer"]:
                 synthesized_answer = update["synthesized_answer"]
             if "report" in update and update["report"]:
