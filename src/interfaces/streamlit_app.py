@@ -4,6 +4,7 @@ from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 
+from config.settings import get_settings
 from coordinator.graph import compile_graph
 
 
@@ -25,6 +26,8 @@ def _render_status(placeholder, running_node: str, step_start: float) -> None:
 st.set_page_config(page_title="Inquiro", page_icon=":material/search:", layout="wide")
 st.title("Inquiro — Multi-Agent Research Assistant")
 
+if "resolved_model" not in st.session_state:
+    st.session_state.resolved_model = ""
 if "graph" not in st.session_state:
     st.session_state.graph = compile_graph()
 if "messages" not in st.session_state:
@@ -48,6 +51,13 @@ with st.sidebar:
         "- **Writer** (Jinja2) — compiles markdown + JSON assets\n\n"
         "Powered by LangGraph + Ollama."
     )
+    st.divider()
+    settings = get_settings()
+    resolved = st.session_state.resolved_model
+    if resolved:
+        st.caption(f"**Model:** `{resolved}`")
+    else:
+        st.caption(f"**Model:** `{settings.llm_model}`")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -96,6 +106,8 @@ elif st.session_state.running and st.session_state.pending:
                     _render_status(status_placeholder, next_node, step_start)
                 else:
                     status_placeholder.empty()
+                if "resolved_model" in update and update["resolved_model"]:
+                    st.session_state.resolved_model = update["resolved_model"]
                 if "report" in update and update["report"]:
                     st.session_state.report = update["report"]
                     report = update["report"]
