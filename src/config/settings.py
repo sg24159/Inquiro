@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     )
 
     llm_base_url: str = "http://localhost:11434/v1"
-    llm_model: str = "mistral"
+    llm_model: str = "qwen3.5:4b"
     api_key: str = ""
     log_level: str = "INFO"
     relevance_threshold: int = 2

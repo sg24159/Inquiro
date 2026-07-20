@@ -35,7 +35,16 @@ This is required for all modes of operation.
 
 ```bash
 cp .env.example .env 
+
 ```
+#### Key values
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_BASE_URL` | `http://localhost:11434/v1` | LLM API endpoint (Ollama, llama.cpp, NIM, OpenAI) |
+| `LLM_MODEL` | `qwen3.5:4b` | Model name to use |
+| `API_KEY`   | None | Optional key for external providers |
+| `LOG_LEVEL` | `INFO` | Logging verbosity |
 
 ### Option 1: Self-contained Web Interface
 
@@ -128,16 +137,5 @@ This project makes use of the following external libraries, frameworks, and serv
 | **Rich** | Terminal formatting for CLI output | [Textualize/rich](https://github.com/Textualize/rich) (MIT) |
 | **Mistral 7B** | Baseline local LLM model | [mistralai/mistral-src](https://github.com/mistralai/mistral-src) (Apache 2.0) |
 | **Qwen3.5 4B** | Default local LLM model | [QwenLM/Qwen3.5](https://github.com/QwenLM/Qwen3.6#qwen35) (Apache 2.0) |
+| **Gemma 4 E2B** | Alternative, fast local model | [Gemma 4](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/) (Apache 2.0) |
 
-## Configuration
-
-All configuration is via environment variables (see `.env.example`):
-
-### Key values
-
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_BASE_URL` | `http://localhost:11434/v1` | LLM API endpoint (Ollama, llama.cpp, NIM, OpenAI) |
-| `LLM_MODEL` | `qwen3.5:4b` | Model name to use |
-| `API_KEY`   | None | Optional key for external providers |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
